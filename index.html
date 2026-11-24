@@ -39,6 +39,7 @@ table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:7px 9px;b
 .fill input[type=file]{background:#fff0a8;border:1px solid #d4a500;color:#17323f;padding:4px;border-radius:8px}
 .stu{background:#dceefb;border:1px solid #9cc9e8;border-radius:8px;padding:10px;color:#17323f;white-space:pre-wrap}
 @media (prefers-color-scheme:dark){.stu{background:#1d3b52;border-color:#3f7aa3;color:#e4eef2}}
+.faq details{border-top:1px solid var(--line);padding:8px 0;margin-top:6px}.faq details summary{cursor:pointer;font-weight:500}.faq p{margin:6px 0 0}
 .teach{background:#8b1e2d;color:#fff;border-radius:8px;padding:10px 14px;margin-top:8px;white-space:pre-wrap}.tmark{background:#8b1e2d;color:#fff;border-radius:6px;padding:1px 9px;font-weight:600;font-size:13px}
 @media (prefers-color-scheme:dark){.teach,.tmark{background:#a02c3d}}
 .foot{text-align:center;padding:0 16px 32px;font-size:13px;color:var(--muted)}.foot a{color:var(--accent)}
@@ -64,6 +65,22 @@ window.addEventListener('hashchange',route);
 function route(){isTeacher()?teacherHome():studentHome()}
 
 /* ---------- STUDENT ---------- */
+const FAQ=[
+["How do I sign in?","Type the personal code your lecturer gave you and press Continue. The code works like a password, so keep it private. Capital letters do not matter. If the code is not recognised, check that you typed it exactly, then contact your lecturer."],
+["I cannot see any homework.","You only see homework that your lecturer has given you. If the list says that no homework is open right now, nothing has been given to you yet. If you are expecting something, contact your lecturer."],
+["How do I answer the questions?","The yellow areas show where you need to answer. Tick the boxes, choose from the drop-down lists, type in the text boxes, or add a photo where the question asks for a drawing."],
+["How do I submit my homework?","At the bottom of the page press Submit homework, then press Yes, submit to confirm. You will then see a Submitted message. You only get one attempt, so check your answers first. After you submit, you cannot change them."],
+["Can I stop and carry on later?","Yes. Press Save and finish later at the bottom of the page. Your answers also save automatically a few seconds after you change something. Your homework is not submitted until you press Submit. To carry on, sign in with the same code, on any phone, tablet or computer, and press Continue next to the homework. It will show In progress (saved)."],
+["How do I know if my lecturer has corrected my homework?","Look at the status next to the homework on your list. To do means you have not started. In progress (saved) means you have a saved draft. Submitted, awaiting marking means your lecturer has your work but has not released the marks yet. Marked means your marks are ready, so press See marks. Marks and correct answers only appear after your lecturer has marked and released them."],
+["How do I read my marks and feedback?","Marks and comments from your lecturer are in dark red boxes. Your own answers are shown, with the correct answer beside them where you lost marks. For the questions that are marked automatically, green means correct and red means wrong."],
+["How do I upload a photo of my drawing?","Draw on plain paper in dark pen or pencil and label it clearly. Take the photo in good light, from straight above, with the whole drawing in view and the writing readable. On the question, press the file button (Choose file). On a phone you can take a photo or pick one from your photos. Wait for the preview and the message Photo uploaded and saved. To change it, choose another photo."],
+["Which image files can I upload?","Photos and pictures such as JPG, JPEG and PNG work best. Large phone photos are fine, because the site shrinks them automatically. PDF files, Word files and videos are not accepted. If you see a message that the file could not be read as a photo, take a new photo with the camera, or save the picture as a JPG or PNG and try again."],
+["My photo will not upload.","Check your internet connection and try again. Try taking the photo again, or use a JPG or PNG file. If it still does not work, contact your lecturer."],
+["Can I save my marked homework as a PDF?","Yes. When your homework is marked, open See marks and press Save as PDF / Print. In the print window, choose Save as PDF as the printer. If the colours are missing, tick Background graphics in the print window."],
+["It says it could not submit.","Check your internet connection and press Submit again. Do not close the page until you see the Submitted message. If it keeps failing, press Save and finish later, check your connection, then come back and try again."],
+["Something else is not working.","Contact Jason Aquilina at jasonaquilina@gmail.com. Tell him your name, which homework it is, and what you saw on the screen."]
+];
+function helpPanel(){return el('details',{class:'card faq noprint'},el('summary',{style:'cursor:pointer;font-weight:600'},'Help and common questions'),FAQ.map(x=>el('details',{},el('summary',{},x[0]),el('p',{class:'small'},x[1]))))}
 let CODE=null,ME=null;
 function studentHome(){
   $hdr.replaceChildren();
@@ -76,7 +93,7 @@ function studentHome(){
       el('div',{},el('b',{},'Homework '+h.id.replace('HW','')+': '+h.title),el('div',{class:'meta'},'Year '+h.year)),
       el('div',{},el('span',{class:'pill '+(h.status==='todo'?'todo':h.status==='submitted'?'sub':'done')},h.status==='todo'?(h.draft?'In progress (saved)':'To do'):h.status==='submitted'?'Submitted, awaiting marking':'Marked'),' ',
         el('button',{class:'btn sm '+(h.status==='todo'?'':'ghost'),onclick:()=>openHw(h)},h.status==='todo'?(h.draft?'Continue':'Start'):h.status==='submitted'?'View':'See marks')))):[el('p',{class:'meta'},'No homework is open right now.')];
-    show(el('h1',{},'Hello, '+ME.name),el('p',{class:'meta'},'You have one attempt at each homework. Marks and correct answers appear after your teacher has marked it.'),el('div',{class:'card'},rows));
+    show(el('h1',{},'Hello, '+ME.name),el('p',{class:'meta'},'You have one attempt at each homework. Marks and correct answers appear after your teacher has marked it.'),el('div',{class:'card'},rows),helpPanel());
   });
 }
 function studentLogin(msg){
@@ -85,7 +102,7 @@ function studentLogin(msg){
   inp.addEventListener('keydown',e=>{if(e.key==='Enter')go()});
   show(el('h1',{},'Sign in'),el('p',{class:'meta'},'Type the personal code your teacher gave you.'),
     el('div',{class:'card'},inp,el('div',{class:'bar'},el('button',{class:'btn',onclick:go},'Continue')),msg&&el('div',{class:'err'},msg)),
-    el('p',{class:'small'},'This site stores your name, your answers and any photos you upload, so your teacher can mark them. Nothing else is collected.'));
+    helpPanel(),el('p',{class:'small'},'This site stores your name, your answers and any photos you upload, so your teacher can mark them. Nothing else is collected.'));
 }
 function openHw(h){
   sb.rpc('get_homework',{p_code:CODE,p_hw:h.id}).then(({data,error})=>{
@@ -126,7 +143,7 @@ function renderForm(hw){
   const msg=el('div');
   const btn=el('button',{class:'btn',onclick:()=>confirmSubmit()},'Submit homework');
   const sv=el('button',{class:'btn ghost',onclick:async()=>{clearTimeout(timer);const ok=await save(true);if(ok)show(el('h1',{},'Draft saved'),el('div',{class:'ok-msg'},'Your answers are saved. You can come back at any time and carry on from where you stopped. It has NOT been submitted yet.'),el('div',{class:'bar'},el('button',{class:'btn',onclick:studentHome},'Back to my homework')))}},'Save and finish later');
-  body.push(el('div',{class:'bar'},el('button',{class:'btn ghost',onclick:async()=>{clearTimeout(timer);if(dirty)await save(false);studentHome()}},'Back'),el('div',{},sv,' ',btn)),stat,msg);
+  body.push(el('div',{class:'bar'},el('button',{class:'btn ghost',onclick:async()=>{clearTimeout(timer);if(dirty)await save(false);studentHome()}},'Back'),el('div',{},sv,' ',btn)),stat,msg,helpPanel());
   show(body);
   function confirmSubmit(){
     const m=el('div',{class:'modal'},el('div',{class:'box'},el('h2',{},'Submit now?'),el('p',{},'You only get one attempt. After you submit, you cannot change your answers.'),
