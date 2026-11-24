@@ -10,7 +10,8 @@ header{background:var(--navy);color:#fff;padding:12px 0}header .wrap{display:fle
 .brand{font-weight:700;font-size:17px}.brand small{display:block;font-weight:400;font-size:12px;opacity:.7}
 header a,header button.lnk{color:#fff;font-size:13px;background:none;border:0;cursor:pointer;text-decoration:underline}
 main{padding:24px 0 56px}h1{font-size:25px;line-height:1.2;margin:0 0 4px}h2{font-size:18px;margin:0 0 4px}
-.meta{color:var(--muted);font-size:13.5px}.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;margin-top:16px}
+.meta{color:var(--muted);font-size:13.5px}.exambox{border:2px solid var(--fg);border-radius:8px;padding:14px 16px;margin:12px 0;background:var(--surface)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;margin-top:16px}
 .qlabel{font-weight:600;font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--accent)}.marks{font-size:12.5px;color:var(--muted)}
 .qhead{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px}.src{font-size:13px;color:var(--muted);margin:0 0 10px}
 .item{margin:14px 0 4px}.item.mk{border-top:3px solid var(--line);margin-top:26px;padding-top:16px}.item.overall{background:#e4f3ee;border:1px solid #9fcfc0;border-radius:8px;padding:12px}@media(prefers-color-scheme:dark){.item.overall{background:#163a32;border-color:#2f7a68}}.item .lab{font-weight:500;margin-bottom:6px}
@@ -85,6 +86,7 @@ const FAQ=[
 ["It says it could not submit.","Check your internet connection and press Submit again. Do not close the page until you see the Submitted message. If it keeps failing, press Save and finish later, check your connection, then come back and try again."],
 ["Something else is not working.","Contact Jason Aquilina at jasonaquilina@gmail.com. Tell him your name, which homework it is, and what you saw on the screen."]
 ];
+const examBox=sec=>sec.exam?el('div',{class:'exambox'},...sec.exam.map(q=>el('div',{style:'margin-bottom:14px'},el('div',{style:'font-weight:700;margin-bottom:6px'},q.h),...q.lines.map(l=>el('p',{style:'margin:0 0 8px'},l))))):null;
 const figs=sec=>(sec.figs||[]).map(f=>el('figure',{style:'margin:10px 0'},el('img',{class:'photo',src:f.src,alt:f.caption||'Figure',style:'background:#fff;max-height:none;width:100%;max-width:1000px'}),f.caption?el('figcaption',{class:'small'},f.caption):null));
 function helpPanel(){return el('details',{class:'card faq noprint'},el('summary',{style:'cursor:pointer;font-weight:600'},'Help and common questions'),FAQ.map(x=>el('details',{},el('summary',{},x[0]),el('p',{class:'small'},x[1]))))}
 let CODE=null,ME=null;
@@ -171,7 +173,7 @@ function renderForm(hw){
   const touch=()=>{dirty=true;clearTimeout(timer);timer=setTimeout(()=>save(false),8000)};
   const mkSelect=it=>{const s=el('select',{onchange:e=>{ans[it.id]=e.target.value;touch()}},el('option',{value:''},'Choose...'),it.options.map(o=>el('option',{value:o},o)));s.value=ans[it.id]||'';return s};
   hw.spec.sections.forEach(sec=>{
-    const c=el('div',{class:'card ask'},el('div',{class:'qhead'},el('span',{class:'qlabel'},sec.title),sec.marks&&el('span',{class:'marks'},sec.marks)),sec.help&&el('p',{class:'src'},sec.help),...figs(sec));
+    const c=el('div',{class:'card ask'},el('div',{class:'qhead'},el('span',{class:'qlabel'},sec.title),sec.marks&&el('span',{class:'marks'},sec.marks)),sec.help&&el('p',{class:'src'},sec.help),examBox(sec),...figs(sec));
     if(sec.para){const its={};sec.items.forEach(i=>its[i.id]=i);const bank=sec.items[0].options;
       c.append(el('p',{class:'small'},'Word bank: '+bank.join(', ')+'. Each correct answer is worth '+(sec.items[0].marks===0.5?'½ mark':sec.items[0].marks===1?'1 mark':sec.items[0].marks+' marks')+'.'),el('p',{class:'cloze'},clozeParts(sec,id=>mkSelect(its[id]))));body.push(c);return}
     if(sec.grid){const opts=sec.items[0].options;c.append(el('div',{class:'tw'},el('table',{class:'gridt'},el('tr',{},el('th',{},''),opts.map(o=>el('th',{},o))),sec.items.map(it=>el('tr',{},el('td',{},it.label),opts.map(o=>{const r=el('input',{type:'radio',name:'g_'+it.id,onchange:()=>{ans[it.id]=o;touch()}});r.checked=ans[it.id]===o;return el('td',{},r)}))))),el('p',{class:'small'},'Tick one box in each row.'));body.push(c);return}
@@ -218,7 +220,7 @@ function showResult(h){
     if(!r||!r.released)return show(el('div',{class:'card'},'Not marked yet.'),el('button',{class:'btn ghost',onclick:studentHome},'Back'));
     const total=sumObj(r.auto_marks)+sumObj(r.manual_marks);
     const body=[el('h1',{},h.title),el('p',{class:'meta'},(ME&&ME.name?ME.name+'  |  ':'')+new Date().toLocaleDateString()),el('div',{class:'noprint'},el('button',{class:'btn ghost sm',onclick:()=>window.print()},'Save as PDF / Print')),el('div',{class:'notice'},'If you disagree with any corrected answer, or you would like to understand why an answer was marked wrong, please contact Jason Aquilina at jasonaquilina@gmail.com.'),el('div',{class:'card'},el('h2',{},'Your mark: ',el('span',{class:'tmark'},fmt(total)+' / '+maxMarks(r.spec))),(r.feedback&&r.feedback._overall)?el('div',{class:'teach',style:'margin-top:10px'},el('b',{},'Lecturer comment: '),r.feedback._overall):null)];
-    r.spec.sections.forEach(sec=>{const c=el('div',{class:'card'},el('span',{class:'qlabel'},sec.title),sec.help&&el('p',{class:'src'},sec.help),...figs(sec));
+    r.spec.sections.forEach(sec=>{const c=el('div',{class:'card'},el('span',{class:'qlabel'},sec.title),sec.help&&el('p',{class:'src'},sec.help),examBox(sec),...figs(sec));
       if(sec.para){const ok=sec.items.filter(i=>(+r.auto_marks[i.id]||0)>=(i.marks||0)).length;c.append(el('p',{class:'cloze'},clozeParts(sec,id=>{const a=r.answers[id],k=r.key[id],m=+r.auto_marks[id]||0,i=sec.items.find(x=>x.id===id);return m>=(i.marks||0)?el('span',{class:'czr ok'},a):el('span',{class:'czr no'},el('s',{},a||'(blank)'),' → ',[].concat(k.answer).concat(k.alts||[]).join(' / '))})),el('p',{class:'small'},'Blanks correct: '+ok+' of '+sec.items.length));body.push(c);return}
       sec.items.forEach(it=>{const k=r.key[it.id],a=r.answers[it.id],m=(it.id in r.auto_marks)?r.auto_marks[it.id]:r.manual_marks[it.id];
         const row=el('div',{class:'item'},el('div',{class:'lab'},it.label,el('span',{class:(it.id in r.auto_marks)?'marks':'tmark',style:'margin-left:8px'},fmt(+m||0)+' / '+(it.marks||0))));
@@ -275,7 +277,7 @@ async function tView(out){
     const G=id=>{const g=gm[id];if(!g)return gchk.checked?el('div',{class:'small'},'(no marker guide)'):null;return el('div',{class:'guide'},el('div',{class:'small'},"Marker's guide"),el('ul',{},(g.look||[]).map(x=>el('li',{},x.p+'  ('+fmt(x.m)+(x.m==1?' mark)':' marks)')))),el('div',{class:'small'},'Model answer'),el('div',{class:'gm'},g.model||''),g.mistakes?el('div',{class:'small'},'Watch out for'):null,g.mistakes?el('div',{class:'gm'},g.mistakes):null,g.ref?el('div',{class:'small'},'Textbook: '+g.ref):null)};
     const body=[el('h2',{},'Homework '+h.id.replace('HW','')+': '+h.title),el('p',{class:'meta'},maxMarks(h.spec)+' marks in total. This is a preview: nothing here can be answered or saved.')];
     h.spec.sections.forEach(sec=>{
-      const c=el('div',{class:'card ask'},el('div',{class:'qhead'},el('span',{class:'qlabel'},sec.title),sec.marks?el('span',{class:'marks'},sec.marks):null),sec.help?el('p',{class:'src'},sec.help):null,...figs(sec));
+      const c=el('div',{class:'card ask'},el('div',{class:'qhead'},el('span',{class:'qlabel'},sec.title),sec.marks?el('span',{class:'marks'},sec.marks):null),sec.help?el('p',{class:'src'},sec.help):null,examBox(sec),...figs(sec));
       if(sec.para){const bank=sec.items[0].options;c.append(el('p',{class:'small'},'Word bank: '+bank.join(', ')+'. Each correct answer is worth '+sec.items[0].marks+' mark(s).'),el('p',{class:'cloze'},clozeParts(sec,id=>el('b',{},'[ '+id+' ]'))));sec.items.forEach(it=>{const g=G(it.id);if(g)c.append(el('div',{class:'small'},'Blank '+it.id+':'),g)});body.push(c);return}
       if(sec.grid){const opts=sec.items[0].options;c.append(el('div',{class:'tw'},el('table',{class:'gridt'},el('tr',{},el('th',{},''),opts.map(o=>el('th',{},o))),sec.items.map(it=>el('tr',{},el('td',{},it.label),opts.map(()=>el('td',{},'\u25CB')))))));sec.items.forEach(it=>{const g=G(it.id);if(g)c.append(el('div',{class:'small'},it.label),g)});body.push(c);return}
       sec.items.forEach(it=>{const box=el('div',{class:'item'},el('div',{class:'lab'},it.label,it.marks?el('span',{class:'marks'},'  ['+it.marks+(it.marks===1?' mark':' marks')+']'):null));
