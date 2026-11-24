@@ -36,6 +36,7 @@ table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:7px 9px;b
 @media (prefers-color-scheme:dark){.ask select,.ask textarea,.ask input[type=file],.ask .opts label{background:#4d3f0c;border-color:#b8900a;color:#f4e8b0}}
 .fill textarea,.fill input[type=number],.fill select{background:#fff0a8;border-color:#d4a500;color:#17323f}
 @media (prefers-color-scheme:dark){.fill textarea,.fill input[type=number],.fill select{background:#4d3f0c;border-color:#b8900a;color:#f4e8b0}}
+.fill input[type=file]{background:#fff0a8;border:1px solid #d4a500;color:#17323f;padding:4px;border-radius:8px}
 .teach{background:#8b1e2d;color:#fff;border-radius:8px;padding:10px 14px;margin-top:8px;white-space:pre-wrap}.tmark{background:#8b1e2d;color:#fff;border-radius:6px;padding:1px 9px;font-weight:600;font-size:13px}
 @media (prefers-color-scheme:dark){.teach,.tmark{background:#a02c3d}}
 .foot{text-align:center;padding:0 16px 32px;font-size:13px;color:var(--muted)}.foot a{color:var(--accent)}
@@ -147,11 +148,11 @@ function showResult(h){
       if(sec.para){const ok=sec.items.filter(i=>(+r.auto_marks[i.id]||0)>=(i.marks||0)).length;c.append(el('p',{class:'cloze'},clozeParts(sec,id=>{const a=r.answers[id],k=r.key[id],m=+r.auto_marks[id]||0,i=sec.items.find(x=>x.id===id);return m>=(i.marks||0)?el('span',{class:'czr ok'},a):el('span',{class:'czr no'},el('s',{},a||'(blank)'),' → ',[].concat(k.answer).join(', '))})),el('p',{class:'small'},'Blanks correct: '+ok+' of '+sec.items.length));body.push(c);return}
       sec.items.forEach(it=>{const k=r.key[it.id],a=r.answers[it.id],m=(it.id in r.auto_marks)?r.auto_marks[it.id]:r.manual_marks[it.id];
         const row=el('div',{class:'item'},el('div',{class:'lab'},it.label,el('span',{class:(it.id in r.auto_marks)?'marks':'tmark',style:'margin-left:8px'},fmt(+m||0)+' / '+(it.marks||0))));
-        if(k){const mine=[].concat(a||[]).join(', ')||'(no answer)',right=[].concat(k.answer).join(', ');const good=(+m||0)>=(it.marks||0);
+        if(k){const mine=[].concat(a||[]).join(', ')||'(no answer)',right=[].concat(k.answer).join(', ')+(k.alts?' (also accepted: '+k.alts.map(a=>a.join(', ')).join(' | ')+')':'');const good=(+m||0)>=(it.marks||0);
           row.append(el('div',{class:'opts'},el('label',{class:good?'ok':'no'},'You: '+mine)),!good&&el('div',{class:'opts',style:'margin-top:6px'},el('label',{class:'miss'},'Correct: '+right)))}
         else if(it.type==='text')row.append(el('div',{class:'small',style:'white-space:pre-wrap'},a||'(no answer)'));
         else row.append(el('div',{class:'small'},'Drawing marked by your teacher.'));
-        {const f=(r.feedback||{})[it.id];if(f)row.append(el('div',{class:'teach'},el('b',{},'Teacher feedback: '),f))}c.append(row)});body.push(c)});
+        {const f=(r.feedback||{})[it.id];if(f)row.append(el('div',{class:'teach'},el('b',{},'Teacher feedback: '),f))}{const im=(r.feedback_imgs||{})[it.id];if(im)row.append(el('div',{class:'teach'},el('b',{},'Teacher feedback image:'),el('img',{class:'photo',src:im,style:'display:block;background:#fff'})))}c.append(row)});body.push(c)});
     body.push(el('div',{class:'bar'},el('button',{class:'btn ghost',onclick:studentHome},'Back')));show(body)});
 }
 
@@ -248,12 +249,16 @@ async function tMarking(out){
     sub.forEach(s=>list.append(markCard(h,s,st.find(x=>x.id===s.student_id),load)))};
   sel.onchange=load;if(hw.length)load();
 }
+function shrinkData(file){return new Promise((res,rej)=>{const img=new Image();img.onload=()=>{const M=1200,r=Math.min(1,M/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=Math.round(img.width*r);c.height=Math.round(img.height*r);c.getContext('2d').drawImage(img,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.75))};img.onerror=rej;img.src=URL.createObjectURL(file)})}
+function imgTool(fimg,id){const prev=el('div');const draw=()=>{prev.replaceChildren();if(fimg[id])prev.append(el('img',{class:'photo',src:fimg[id]}),el('div',{style:'margin-top:6px'},el('button',{class:'btn ghost sm',onclick:()=>{delete fimg[id];draw()}},'Remove image')))};
+  const inp=el('input',{type:'file',accept:'image/*',onchange:async e=>{const f=e.target.files[0];if(!f)return;try{fimg[id]=await shrinkData(f);draw()}catch(x){prev.replaceChildren(el('div',{class:'err'},'That file could not be read as an image.'))}e.target.value=''}});
+  draw();return el('div',{style:'margin-top:8px'},el('div',{class:'small'},'Add an image to your feedback (optional), for example a corrected drawing:'),inp,prev)}
 function markCard(h,s,stu,reload){
-  const manual={...(s.manual_marks||{})};const fb={...(s.feedback||{})};const c=el('div',{class:'card fill'});const tot=el('span',{});
+  const manual={...(s.manual_marks||{})};const fb={...(s.feedback||{})};const fimg={...(s.feedback_imgs||{})};const c=el('div',{class:'card fill'});const tot=el('span',{});
   const tot2=el('b',{});const upd=()=>{tot2.textContent=tot.textContent=fmt(sumObj(s.auto_marks)+sumObj(manual))+' / '+maxMarks(h.spec)};
   c.append(el('div',{class:'qhead'},el('h2',{},stu?stu.name:'(removed)'),el('span',{class:'marks'},'Submitted '+new Date(s.submitted_at).toLocaleString())));
 const all=el('div',{style:'display:none;margin-top:6px'},el('div',{class:'small'},'Auto-marked questions: '+fmt(sumObj(s.auto_marks))+' marks in total'));
-h.spec.sections.forEach(sec=>{const its=sec.items.filter(i=>h.key&&h.key[i.id]);if(!its.length)return;all.append(el('div',{class:'qlabel',style:'display:block;margin-top:12px'},sec.title),...its.map(it=>{const k=h.key[it.id],a=s.answers[it.id],m=+(s.auto_marks||{})[it.id]||0,good=m>=(it.marks||0),mine=[].concat(a||[]).join(', ')||'(no answer)';return el('div',{class:'item'},el('div',{class:'lab'},it.label,el('span',{class:'marks'},'  '+fmt(m)+' / '+(it.marks||0))),el('div',{class:'opts'},el('label',{class:good?'ok':'no'},'Student: '+mine),!good&&el('label',{class:'miss'},'Correct: '+[].concat(k.answer).join(', '))))}))});
+h.spec.sections.forEach(sec=>{const its=sec.items.filter(i=>h.key&&h.key[i.id]);if(!its.length)return;all.append(el('div',{class:'qlabel',style:'display:block;margin-top:12px'},sec.title),...its.map(it=>{const k=h.key[it.id],a=s.answers[it.id],m=+(s.auto_marks||{})[it.id]||0,good=m>=(it.marks||0),mine=[].concat(a||[]).join(', ')||'(no answer)';return el('div',{class:'item'},el('div',{class:'lab'},it.label,el('span',{class:'marks'},'  '+fmt(m)+' / '+(it.marks||0))),el('div',{class:'opts'},el('label',{class:good?'ok':'no'},'Student: '+mine),!good&&el('label',{class:'miss'},'Correct: '+[].concat(k.answer).join(', ')+(k.alts?' (also accepted: '+k.alts.map(a=>a.join(', ')).join(' | ')+')':''))))}))});
 const tg=el('button',{class:'btn ghost sm',style:'margin-top:10px',onclick:()=>{const o=all.style.display==='none';all.style.display=o?'block':'none';tg.textContent=o?'Hide the auto-marked questions':'Show all questions and answers (auto-marked)'}},'Show all questions and answers (auto-marked)');
 c.append(tg,all);
 
@@ -261,11 +266,11 @@ c.append(tg,all);
     if(it.type==='text'||it.type==='upload'){const row=el('div',{class:'item'},el('div',{class:'lab'},it.label));
       if(it.type==='text')row.append(el('div',{style:'white-space:pre-wrap;background:var(--field);padding:10px;border-radius:8px'},s.answers[it.id]||'(no answer)'));
       else{const p=(s.answers[it.id]||[])[0];if(p){const im=el('img',{class:'photo',alt:'drawing'});sb.storage.from('drawings').createSignedUrl(p,3600).then(({data})=>{if(data)im.src=data.signedUrl});row.append(im)}else row.append(el('div',{class:'small'},'(no photo)'))}
-      row.append(el('div',{style:'margin-top:8px'},'Mark: ',el('input',{type:'number',min:0,max:it.marks,step:0.5,style:'width:80px',value:manual[it.id]??'',oninput:e=>{manual[it.id]=e.target.value===''?0:+e.target.value;upd()}}),' / '+it.marks));const ta=el('textarea',{placeholder:'Comment for the student (optional)',style:'min-height:60px;margin-top:8px',oninput:e=>{const v=e.target.value;v.trim()?fb[it.id]=v:delete fb[it.id]}});ta.value=fb[it.id]||'';row.append(ta,commentTools(ta,v=>{v.trim()?fb[it.id]=v:delete fb[it.id]}));c.append(row)}}));
+      row.append(el('div',{style:'margin-top:8px'},'Mark: ',el('input',{type:'number',min:0,max:it.marks,step:0.5,style:'width:80px',value:manual[it.id]??'',oninput:e=>{manual[it.id]=e.target.value===''?0:+e.target.value;upd()}}),' / '+it.marks));const ta=el('textarea',{placeholder:'Comment for the student (optional)',style:'min-height:60px;margin-top:8px',oninput:e=>{const v=e.target.value;v.trim()?fb[it.id]=v:delete fb[it.id]}});ta.value=fb[it.id]||'';row.append(ta,commentTools(ta,v=>{v.trim()?fb[it.id]=v:delete fb[it.id]}),imgTool(fimg,it.id));c.append(row)}}));
   const ov=el('textarea',{placeholder:'Overall comment for the student on this homework (optional)',style:'min-height:70px',oninput:e=>{const v=e.target.value;v.trim()?fb._overall=v:delete fb._overall}});ov.value=fb._overall||'';
 c.append(el('div',{class:'item',style:'background:var(--field);border-radius:8px;padding:12px'},el('div',{class:'lab'},'Total mark: ',tot2,'   Overall comment for the student'),ov,commentTools(ov,v=>{v.trim()?fb._overall=v:delete fb._overall})));
   const msg=el('span',{class:'small'});
-  const save=async rel=>{const {error}=await sb.from('submissions').update({manual_marks:manual,feedback:fb,released:rel??s.released}).eq('id',s.id);error?msg.textContent='Could not save':(msg.textContent='Saved',rel!==undefined&&reload())};
+  const save=async rel=>{const {error}=await sb.from('submissions').update({manual_marks:manual,feedback:fb,feedback_imgs:fimg,released:rel??s.released}).eq('id',s.id);error?msg.textContent='Could not save':(msg.textContent='Saved',rel!==undefined&&reload())};
   c.append(el('div',{class:'bar'},el('div',{},'Total: ',el('b',{},tot),' ',s.released?el('span',{class:'pill done'},'released'):null,' ',msg),el('div',{},el('button',{class:'btn ghost sm',onclick:()=>save()},'Save marks'),' ',el('button',{class:'btn sm',onclick:()=>save(!s.released)},s.released?'Hide marks':'Save & release'))));
   upd();return c;
 }
