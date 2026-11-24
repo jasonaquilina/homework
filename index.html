@@ -41,6 +41,7 @@ table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:7px 9px;b
 @media (prefers-color-scheme:dark){.stu{background:#1d3b52;border-color:#3f7aa3;color:#e4eef2}}
 .faq details{border-top:1px solid var(--line);padding:8px 0;margin-top:6px}.faq details summary{cursor:pointer;font-weight:500}.faq p{margin:6px 0 0}
 .teach{background:#8b1e2d;color:#fff;border-radius:8px;padding:10px 14px;margin-top:8px;white-space:pre-wrap}.tmark{background:#8b1e2d;color:#fff;border-radius:6px;padding:1px 9px;font-weight:600;font-size:13px}
+.ov td.st-s{background:#f9c6d8;color:#5a1030}.ov td.st-i{background:#f2c230;color:#4a3600;font-weight:600}.ov td.st-m{background:#8fd19e;color:#0f3d1a}
 .guide{border:1px solid #e3a257;border-radius:8px;padding:8px 12px;margin-top:8px;background:#fde9cf;color:#4a2a08}.guide .small{color:#8a4a06;font-weight:600}.guide .btn{background:#fff;color:#4a2a08;border-color:#e3a257}@media (prefers-color-scheme:dark){.guide{background:#4a3216;color:#fbe4c6;border-color:#b87a35}.guide .small{color:#f2b975}.guide .btn{background:#2b1d0c;color:#fbe4c6;border-color:#b87a35}}.guide summary{cursor:pointer;font-weight:600}.guide .gm{white-space:pre-wrap;margin:2px 0 8px}.guide ul{margin:2px 0 8px 18px;padding:0}
 @media (prefers-color-scheme:dark){.teach,.tmark{background:#a02c3d}}
 .foot{text-align:center;padding:0 16px 32px;font-size:13px;color:var(--muted)}.foot a{color:var(--accent)}.legal{max-width:640px;margin:0 auto 10px;font-size:12px;line-height:1.5}.notice{border-left:4px solid #8b1e2d;background:var(--field);padding:10px 14px;border-radius:6px;font-size:13px;margin:12px 0}.printlegal{display:none}@media print{.printlegal{display:block;font-size:11px;margin-top:16px;color:#5b7380}.legal{display:none}}
@@ -260,16 +261,39 @@ function tBackup(out){
   out.append(el('div',{class:'card'},el('h2',{},'Backup'),el('p',{class:'small'},'Download a copy of all your data (students, groups, homework, allocations, submissions, drafts, marks, feedback and saved comments) as one file. The free Supabase plan has no automatic backups, so do this regularly, for example after each marking session. The file contains student codes and names, so store it privately.'),el('label',{class:'small'},inc,' Also include students\' drawings (makes the file larger)'),el('div',{class:'bar'},el('button',{class:'btn',onclick:go},'Download backup')),st))
 }
 function renderTeacher(){
-  const t=el('div',{class:'tabs'},['overview','students','allocate','marking','pics','backup'].map(k=>el('button',{'aria-pressed':tab===k?'true':'false',onclick:()=>{tab=k;renderTeacher()}},{overview:'Overview',students:'Students',allocate:'Allocate homework',marking:'Marking',pics:'Files',backup:'Backup'}[k])));
+  const t=el('div',{class:'tabs'},['overview','students','view','allocate','marking','pics','backup'].map(k=>el('button',{'aria-pressed':tab===k?'true':'false',onclick:()=>{tab=k;renderTeacher()}},{overview:'Overview',students:'Students',view:'View homework',allocate:'Allocate homework',marking:'Marking',pics:'Files',backup:'Backup'}[k])));
   const out=el('div',{});t.append(el('button',{class:'btn ghost sm',style:'margin-left:auto',onclick:renderTeacher},'↻ Refresh'),el('span',{class:'small',style:'align-self:center'},'Updated '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})));show(el('h1',{},'Lecturer'),t,out);
-  ({overview:tOverview,students:tStudents,allocate:tAllocate,marking:tMarking,pics:tPics,backup:tBackup})[tab](out);
+  ({overview:tOverview,students:tStudents,view:tView,allocate:tAllocate,marking:tMarking,pics:tPics,backup:tBackup})[tab](out);
+}
+async function tView(out){
+  const {data:hw}=await sb.from('homework').select('id,title,year,spec').order('id');
+  if(!hw||!hw.length)return out.append(el('div',{class:'card'},'No homework yet.'));
+  const pick=el('select',{},hw.map(h=>el('option',{value:h.id},h.id+' (Stage '+h.year+'): '+h.title)));
+  if(store('viewhw'))pick.value=store('viewhw');
+  const gchk=el('input',{type:'checkbox'});const view=el('div',{});
+  const draw=async()=>{store('viewhw',pick.value);const h=hw.find(x=>x.id===pick.value);if(!h)return;const gm=gchk.checked?await getGuides(h.id):{};
+    const G=id=>{const g=gm[id];if(!g)return gchk.checked?el('div',{class:'small'},'(no marker guide)'):null;return el('div',{class:'guide'},el('div',{class:'small'},"Marker's guide"),el('ul',{},(g.look||[]).map(x=>el('li',{},x.p+'  ('+fmt(x.m)+(x.m==1?' mark)':' marks)')))),el('div',{class:'small'},'Model answer'),el('div',{class:'gm'},g.model||''),g.mistakes?el('div',{class:'small'},'Watch out for'):null,g.mistakes?el('div',{class:'gm'},g.mistakes):null,g.ref?el('div',{class:'small'},'Textbook: '+g.ref):null)};
+    const body=[el('h2',{},'Homework '+h.id.replace('HW','')+': '+h.title),el('p',{class:'meta'},maxMarks(h.spec)+' marks in total. This is a preview: nothing here can be answered or saved.')];
+    h.spec.sections.forEach(sec=>{
+      const c=el('div',{class:'card ask'},el('div',{class:'qhead'},el('span',{class:'qlabel'},sec.title),sec.marks?el('span',{class:'marks'},sec.marks):null),sec.help?el('p',{class:'src'},sec.help):null,...figs(sec));
+      if(sec.para){const bank=sec.items[0].options;c.append(el('p',{class:'small'},'Word bank: '+bank.join(', ')+'. Each correct answer is worth '+sec.items[0].marks+' mark(s).'),el('p',{class:'cloze'},clozeParts(sec,id=>el('b',{},'[ '+id+' ]'))));sec.items.forEach(it=>{const g=G(it.id);if(g)c.append(el('div',{class:'small'},'Blank '+it.id+':'),g)});body.push(c);return}
+      if(sec.grid){const opts=sec.items[0].options;c.append(el('div',{class:'tw'},el('table',{class:'gridt'},el('tr',{},el('th',{},''),opts.map(o=>el('th',{},o))),sec.items.map(it=>el('tr',{},el('td',{},it.label),opts.map(()=>el('td',{},'\u25CB')))))));sec.items.forEach(it=>{const g=G(it.id);if(g)c.append(el('div',{class:'small'},it.label),g)});body.push(c);return}
+      sec.items.forEach(it=>{const box=el('div',{class:'item'},el('div',{class:'lab'},it.label,it.marks?el('span',{class:'marks'},'  ['+it.marks+(it.marks===1?' mark':' marks')+']'):null));
+        if(it.options)box.append(el('div',{class:'small'},(it.type==='multi'?'Tick all that apply: ':'Choose one: ')+it.options.join(' | ')));
+        else if(it.type==='upload')box.append(el('div',{class:'small'},'(Student uploads a photo here)'));
+        else box.append(el('div',{class:'small'},'(Student types an answer here)'));
+        const g=G(it.id);if(g)box.append(g);c.append(box)});
+      body.push(c)});
+    view.replaceChildren(...body)};
+  pick.onchange=draw;gchk.onchange=draw;
+  out.append(el('div',{class:'card'},el('label',{class:'small'},'Choose a homework to view'),pick,el('label',{style:'display:block;margin-top:8px'},gchk,' Show marker\'s guides (only you see these)')),view);draw();
 }
 async function tOverview(out){
   const [{data:st},{data:hw},{data:sub},{data:asg},{data:drf}]=await Promise.all([sb.from('students').select('*').eq('archived',false).order('name'),sb.from('homework').select('id,title').order('id'),sb.from('submissions').select('student_id,homework_id,released'),sb.from('assignments').select('student_id,homework_id'),sb.from('drafts').select('student_id,homework_id')]);
   if(!st.length)return out.append(el('div',{class:'card'},'No students yet. Add them on the Students tab.'));
   const get=(s,h)=>sub.find(x=>x.student_id===s&&x.homework_id===h);
   out.append(el('div',{class:'card tw ov'},el('table',{},el('tr',{},el('th',{},'Homework'),st.map(s=>el('th',{},s.name))),
-    hw.map(h=>el('tr',{},el('td',{title:h.title},h.id),st.map(s=>{const x=get(s.id,h.id);return el('td',{},x?(x.released?'✓ marked':'✓ in'):(asg.some(a=>a.student_id===s.id&&a.homework_id===h.id)?(drf.some(a=>a.student_id===s.id&&a.homework_id===h.id)?'started':'to do'):'–'))}))))),
+    hw.map(h=>el('tr',{},el('td',{title:h.title},h.id),st.map(s=>{const x=get(s.id,h.id);const t=x?(x.released?'✓ marked':'✓ in'):(asg.some(a=>a.student_id===s.id&&a.homework_id===h.id)?(drf.some(a=>a.student_id===s.id&&a.homework_id===h.id)?'started':'to do'):'–');return el('td',{class:{'✓ marked':'st-m','✓ in':'st-i','started':'st-s'}[t]||''},t)}))))),
     el('p',{class:'small'},'✓ in = submitted, waiting for you. ✓ marked = marks released. to do = given, not started. started = saved a draft, not yet submitted. – = not given.'));
 }
 async function tStudents(out){
