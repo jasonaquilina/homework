@@ -26,7 +26,7 @@ select.ok{background:var(--good-bg);border-color:var(--good)}select.no{backgroun
 .pill{display:inline-block;font-size:12px;padding:2px 9px;border-radius:99px;font-weight:600}.todo{background:var(--warn-bg);color:var(--warn)}.sub{background:var(--field);color:var(--muted);border:1px solid var(--line)}.done{background:var(--good-bg);color:var(--good)}
 .hwrow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}.hwrow:last-child{border:0}
 .err{background:var(--bad-bg);color:var(--bad);padding:10px 12px;border-radius:8px;margin-top:12px;font-size:14px}.ok-msg{background:var(--good-bg);color:var(--good);padding:10px 12px;border-radius:8px;margin-top:12px}
-table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:center}th{font-size:12.5px;color:var(--muted)}td:first-child,th:first-child{text-align:left}.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:center}th{font-size:12.5px;color:var(--muted)}td:first-child,th:first-child{text-align:left}.tw{overflow-x:auto}.ov table{width:auto}.ov th,.ov td{padding:6px 14px;white-space:nowrap}.ov td:first-child,.ov th:first-child{padding-right:28px;font-weight:600}
 .photo{max-width:100%;max-height:420px;border:1px solid var(--line);border-radius:8px;margin-top:8px}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px}.modal .box{background:var(--surface);border-radius:12px;padding:22px;max-width:420px}
 .tabs{display:flex;gap:6px;margin-top:16px;flex-wrap:wrap}.tabs button{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:8px;padding:7px 14px;cursor:pointer;font-weight:500}.tabs button[aria-pressed=true]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
@@ -265,7 +265,7 @@ async function tOverview(out){
   const [{data:st},{data:hw},{data:sub},{data:asg},{data:drf}]=await Promise.all([sb.from('students').select('*').eq('archived',false).order('name'),sb.from('homework').select('id,title').order('id'),sb.from('submissions').select('student_id,homework_id,released'),sb.from('assignments').select('student_id,homework_id'),sb.from('drafts').select('student_id,homework_id')]);
   if(!st.length)return out.append(el('div',{class:'card'},'No students yet. Add them on the Students tab.'));
   const get=(s,h)=>sub.find(x=>x.student_id===s&&x.homework_id===h);
-  out.append(el('div',{class:'card tw'},el('table',{},el('tr',{},el('th',{},'Homework'),st.map(s=>el('th',{},s.name))),
+  out.append(el('div',{class:'card tw ov'},el('table',{},el('tr',{},el('th',{},'Homework'),st.map(s=>el('th',{},s.name))),
     hw.map(h=>el('tr',{},el('td',{title:h.title},h.id),st.map(s=>{const x=get(s.id,h.id);return el('td',{},x?(x.released?'✓ marked':'✓ in'):(asg.some(a=>a.student_id===s.id&&a.homework_id===h.id)?(drf.some(a=>a.student_id===s.id&&a.homework_id===h.id)?'started':'to do'):'–'))}))))),
     el('p',{class:'small'},'✓ in = submitted, waiting for you. ✓ marked = marks released. to do = given, not started. started = saved a draft, not yet submitted. – = not given.'));
 }
