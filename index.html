@@ -7,7 +7,7 @@
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 var(--font)}
 .wrap{max-width:860px;margin:0 auto;padding:0 16px}.wide{max-width:1100px}
 header{background:var(--navy);color:#fff;padding:12px 0}header .wrap{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
-.brand{font-weight:700;font-size:17px}.brand small{display:block;font-weight:400;font-size:12px;opacity:.7}
+.brand{font-weight:700;font-size:17px}.brand hsmall{display:block;font-weight:400;font-size:12px;opacity:.7}
 header a,header button.lnk{color:#fff;font-size:13px;background:none;border:0;cursor:pointer;text-decoration:underline}
 main{padding:24px 0 56px}h1{font-size:25px;line-height:1.2;margin:0 0 4px}h2{font-size:18px;margin:0 0 4px}
 .meta{color:var(--muted);font-size:13.5px}.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;margin-top:16px}
@@ -119,7 +119,7 @@ function showResult(h){
     if(!r||!r.released)return show(el('div',{class:'card'},'Not marked yet.'),el('button',{class:'btn ghost',onclick:studentHome},'Back'));
     const total=sumObj(r.auto_marks)+sumObj(r.manual_marks);
     const body=[el('h1',{},h.title),el('div',{class:'card'},el('h2',{},'Your mark: '+fmt(total)+' / '+maxMarks(r.spec)))];
-    r.spec.sections.forEach(sec=>{const c=el('div',{class:'card'},el('span',{class:'qlabel'},sec.title));
+    r.spec.sections.forEach(sec=>{const c=el('div',{class:'card'},el('span',{class:'qlabel'},sec.title),sec.help&&el('p',{class:'src'},sec.help));
       sec.items.forEach(it=>{const k=r.key[it.id],a=r.answers[it.id],m=(it.id in r.auto_marks)?r.auto_marks[it.id]:r.manual_marks[it.id];
         const row=el('div',{class:'item'},el('div',{class:'lab'},it.label,el('span',{class:'marks'},'  '+fmt(+m||0)+' / '+(it.marks||0))));
         if(k){const mine=[].concat(a||[]).join(', ')||'(no answer)',right=[].concat(k.answer).join(', ');const good=(+m||0)>=(it.marks||0);
