@@ -149,7 +149,7 @@ function teacherLogin(msg){
 }
 function renderTeacher(){
   const t=el('div',{class:'tabs'},['overview','students','allocate','marking'].map(k=>el('button',{'aria-pressed':tab===k?'true':'false',onclick:()=>{tab=k;renderTeacher()}},{overview:'Overview',students:'Students',allocate:'Allocate homework',marking:'Marking'}[k])));
-  const out=el('div',{});show(el('h1',{},'Teacher'),t,out);
+  const out=el('div',{});t.append(el('button',{class:'btn ghost sm',style:'margin-left:auto',onclick:renderTeacher},'↻ Refresh'),el('span',{class:'small',style:'align-self:center'},'Updated '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})));show(el('h1',{},'Teacher'),t,out);
   ({overview:tOverview,students:tStudents,allocate:tAllocate,marking:tMarking})[tab](out);
 }
 async function tOverview(out){
