@@ -32,9 +32,13 @@ table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:7px 9px;b
 .tabs{display:flex;gap:6px;margin-top:16px;flex-wrap:wrap}.tabs button{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:8px;padding:7px 14px;cursor:pointer;font-weight:500}.tabs button[aria-pressed=true]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
 .small{font-size:13px;color:var(--muted)}
 .cloze{line-height:2.4;margin:8px 0}.cloze select{margin:0 4px;min-width:150px}.czr{padding:1px 8px;border-radius:6px;font-weight:600}.czr.ok{background:var(--good-bg);color:var(--good)}.czr.no{background:var(--bad-bg);color:var(--bad)}.czr s{opacity:.85;font-weight:500}
+.ask select,.ask textarea,.ask input[type=file],.ask .opts label{background:#fff0a8;border-color:#d4a500;color:#17323f}
+@media (prefers-color-scheme:dark){.ask select,.ask textarea,.ask input[type=file],.ask .opts label{background:#4d3f0c;border-color:#b8900a;color:#f4e8b0}}
+.foot{text-align:center;padding:0 16px 32px;font-size:13px;color:var(--muted)}.foot a{color:var(--accent)}
 </style></head><body>
 <header><div class="wrap"><div class="brand">Biology Homework<small>MATSEC Intermediate</small></div><div id="hdr"></div></div></header>
 <main><div class="wrap" id="app"></div></main>
+<footer class="foot">Having a problem with this site? Contact Jason Aquilina: <a href="mailto:jasonaquilina@gmail.com">jasonaquilina@gmail.com</a></footer>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
 const SB_URL='https://esvgegiqocjntsoaypck.supabase.co', SB_KEY='sb_publishable_-uXGBdw4DopnP-J7IEhF3w_jnjtSROW';
@@ -86,11 +90,11 @@ function openHw(h){
 function clozeParts(sec,mk){return sec.para.split(/\{(\w+)\}/).map((t,i)=>i%2?mk(t):t)}
 function renderForm(hw){
   const ans={},photos={},files=[];
-  const body=[el('h1',{},'Homework '+hw.id.replace('HW','')+': '+hw.title),el('p',{class:'meta'},'One attempt only. '+maxMarks(hw.spec)+' marks in total.')];
+  const body=[el('h1',{},'Homework '+hw.id.replace('HW','')+': '+hw.title),el('p',{class:'meta'},'One attempt only. '+maxMarks(hw.spec)+' marks in total. The yellow areas show where you need to answer.')];
   hw.spec.sections.forEach(sec=>{
-    const c=el('div',{class:'card'},el('div',{class:'qhead'},el('span',{class:'qlabel'},sec.title),sec.marks&&el('span',{class:'marks'},sec.marks)),sec.help&&el('p',{class:'src'},sec.help));
+    const c=el('div',{class:'card ask'},el('div',{class:'qhead'},el('span',{class:'qlabel'},sec.title),sec.marks&&el('span',{class:'marks'},sec.marks)),sec.help&&el('p',{class:'src'},sec.help));
     if(sec.para){const its={};sec.items.forEach(i=>its[i.id]=i);const bank=sec.items[0].options;
-      c.append(el('p',{class:'small'},'Word bank: '+bank.join(', ')),el('p',{class:'cloze'},clozeParts(sec,id=>el('select',{onchange:e=>ans[id]=e.target.value},el('option',{value:''},'Choose...'),its[id].options.map(o=>el('option',{value:o},o))))));body.push(c);return}
+      c.append(el('p',{class:'small'},'Word bank: '+bank.join(', ')+'. Each correct answer is worth '+(sec.items[0].marks===0.5?'½ mark':sec.items[0].marks===1?'1 mark':sec.items[0].marks+' marks')+'.'),el('p',{class:'cloze'},clozeParts(sec,id=>el('select',{onchange:e=>ans[id]=e.target.value},el('option',{value:''},'Choose...'),its[id].options.map(o=>el('option',{value:o},o))))));body.push(c);return}
     sec.items.forEach(it=>{
       const box=el('div',{class:'item'},el('div',{class:'lab'},it.label,it.marks?el('span',{class:'marks'},'  ['+it.marks+(it.marks===1?' mark':' marks')+']'):null));
       if(it.type==='multi'){ans[it.id]=[];box.append(el('div',{class:'opts'},it.options.map(o=>el('label',{},el('input',{type:'checkbox',onchange:e=>{const a=ans[it.id];e.target.checked?a.push(o):a.splice(a.indexOf(o),1)}}),o))))}
