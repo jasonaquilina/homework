@@ -95,7 +95,7 @@ function studentHome(){
     if(error||!data){store('code',null);CODE=null;return studentLogin(error?(lockMsg(error)||'Something went wrong. Please try again.'):'That code was not recognised.')}
     ME=data;ME.homework.forEach(h=>{if(h.status==='draft'){h.draft=true;h.status='todo'}});$hdr.append(el('span',{class:'small',style:'color:#fff'},ME.name+'  '),el('button',{class:'lnk',onclick:()=>{store('code',null);studentHome()}},'Sign out'));
     const rows=ME.homework.length?ME.homework.map(h=>el('div',{class:'hwrow'},
-      el('div',{},el('b',{},'Homework '+h.id.replace('HW','')+': '+h.title),el('div',{class:'meta'},'Year '+h.year)),
+      el('div',{},el('b',{},'Homework '+h.id.replace('HW','')+': '+h.title),el('div',{class:'meta'},'Stage '+h.year)),
       el('div',{},el('span',{class:'pill '+(h.status==='todo'?'todo':h.status==='submitted'?'sub':'done')},h.status==='todo'?(h.draft?'In progress (saved)':'To do'):h.status==='submitted'?'Submitted, awaiting marking':'Marked'),' ',
         el('button',{class:'btn sm '+(h.status==='todo'?'':'ghost'),onclick:()=>openHw(h)},h.status==='todo'?(h.draft?'Continue':'Start'):h.status==='submitted'?'View':'See marks')))):[el('p',{class:'meta'},'No homework is open right now.')];
     show(el('h1',{},'Hello, '+ME.name),el('p',{class:'meta'},'You have one attempt at each homework. Marks and correct answers appear after your lecturer has marked it.'),el('div',{class:'card'},rows),picCard(),helpPanel());
