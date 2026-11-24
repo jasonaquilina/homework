@@ -52,7 +52,7 @@ table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:7px 9px;b
 <script>
 document.getElementById("yr").textContent=new Date().getFullYear();
 const NOTICE="For Jason Aquilina's students only. Do not share your code or any content from this site.";
-const lockMsg=e=>{const m=(e&&e.message)||"";return /locked/i.test(m)?"Too many wrong attempts. Please wait 10 minutes and try again.":/blocked/i.test(m)?"Your access has been paused. Please contact Jason Aquilina.":null};
+const lockMsg=e=>{const m=(e&&e.message)||"";return /blocked/i.test(m)?"Your access has been paused. Please contact Jason Aquilina.":/locked/i.test(m)?"Too many wrong attempts. Please wait 10 minutes and try again.":null};
 const SB_URL='https://esvgegiqocjntsoaypck.supabase.co', SB_KEY='sb_publishable_-uXGBdw4DopnP-J7IEhF3w_jnjtSROW';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 const $app=document.getElementById('app'),$hdr=document.getElementById('hdr');
