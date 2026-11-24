@@ -37,6 +37,8 @@ table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:7px 9px;b
 .fill textarea,.fill input[type=number],.fill select{background:#fff0a8;border-color:#d4a500;color:#17323f}
 @media (prefers-color-scheme:dark){.fill textarea,.fill input[type=number],.fill select{background:#4d3f0c;border-color:#b8900a;color:#f4e8b0}}
 .fill input[type=file]{background:#fff0a8;border:1px solid #d4a500;color:#17323f;padding:4px;border-radius:8px}
+.stu{background:#dceefb;border:1px solid #9cc9e8;border-radius:8px;padding:10px;color:#17323f;white-space:pre-wrap}
+@media (prefers-color-scheme:dark){.stu{background:#1d3b52;border-color:#3f7aa3;color:#e4eef2}}
 .teach{background:#8b1e2d;color:#fff;border-radius:8px;padding:10px 14px;margin-top:8px;white-space:pre-wrap}.tmark{background:#8b1e2d;color:#fff;border-radius:6px;padding:1px 9px;font-weight:600;font-size:13px}
 @media (prefers-color-scheme:dark){.teach,.tmark{background:#a02c3d}}
 .foot{text-align:center;padding:0 16px 32px;font-size:13px;color:var(--muted)}.foot a{color:var(--accent)}
@@ -265,8 +267,8 @@ c.append(tg,all);
 
   h.spec.sections.forEach(sec=>sec.items.forEach(it=>{
     if(it.type==='text'||it.type==='upload'){const row=el('div',{class:'item'},el('div',{class:'lab'},it.label));
-      if(it.type==='text')row.append(el('div',{style:'white-space:pre-wrap;background:var(--field);padding:10px;border-radius:8px'},s.answers[it.id]||'(no answer)'));
-      else{const p=(s.answers[it.id]||[])[0];if(p){const im=el('img',{class:'photo',alt:'drawing'});sb.storage.from('drawings').createSignedUrl(p,3600).then(({data})=>{if(data)im.src=data.signedUrl});row.append(im)}else row.append(el('div',{class:'small'},'(no photo)'))}
+      if(it.type==='text')row.append(el('div',{class:'small',style:'margin-bottom:4px'},"Student's answer:"),el('div',{class:'stu'},s.answers[it.id]||'(no answer)'));
+      else{const p=(s.answers[it.id]||[])[0];if(p){const im=el('img',{class:'photo',alt:'drawing'});sb.storage.from('drawings').createSignedUrl(p,3600).then(({data})=>{if(data)im.src=data.signedUrl});row.append(el('div',{class:'small',style:'margin-bottom:4px'},"Student's photo:"),el('div',{class:'stu'},im))}else row.append(el('div',{class:'small'},'(no photo)'))}
       row.append(el('div',{style:'margin-top:8px'},'Mark: ',el('input',{type:'number',min:0,max:it.marks,step:0.5,style:'width:80px',value:manual[it.id]??'',oninput:e=>{manual[it.id]=e.target.value===''?0:+e.target.value;upd()}}),' / '+it.marks));const ta=el('textarea',{placeholder:'Comment for the student (optional)',style:'min-height:60px;margin-top:8px',oninput:e=>{const v=e.target.value;v.trim()?fb[it.id]=v:delete fb[it.id]}});ta.value=fb[it.id]||'';row.append(ta,commentTools(ta,v=>{v.trim()?fb[it.id]=v:delete fb[it.id]}),imgTool(fimg,it.id));c.append(row)}}));
   const ov=el('textarea',{placeholder:'Overall comment for the student on this homework (optional)',style:'min-height:70px',oninput:e=>{const v=e.target.value;v.trim()?fb._overall=v:delete fb._overall}});ov.value=fb._overall||'';
 c.append(el('div',{class:'item',style:'background:var(--field);border-radius:8px;padding:12px'},el('div',{class:'lab'},'Total mark: ',tot2,'   Overall comment for the student'),ov,commentTools(ov,v=>{v.trim()?fb._overall=v:delete fb._overall})));
