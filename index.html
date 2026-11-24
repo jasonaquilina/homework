@@ -148,27 +148,45 @@ function teacherLogin(msg){
   show(el('h1',{},'Teacher sign-in'),el('div',{class:'card'},el('div',{},e),el('div',{style:'margin-top:8px'},p),el('div',{class:'bar'},el('button',{class:'btn',onclick:go},'Sign in')),msg&&el('div',{class:'err'},msg)));
 }
 function renderTeacher(){
-  const t=el('div',{class:'tabs'},['overview','students','marking'].map(k=>el('button',{'aria-pressed':tab===k,onclick:()=>{tab=k;renderTeacher()}},{overview:'Overview',students:'Students',marking:'Marking'}[k])));
+  const t=el('div',{class:'tabs'},['overview','students','allocate','marking'].map(k=>el('button',{'aria-pressed':tab===k?'true':'false',onclick:()=>{tab=k;renderTeacher()}},{overview:'Overview',students:'Students',allocate:'Allocate homework',marking:'Marking'}[k])));
   const out=el('div',{});show(el('h1',{},'Teacher'),t,out);
-  ({overview:tOverview,students:tStudents,marking:tMarking})[tab](out);
+  ({overview:tOverview,students:tStudents,allocate:tAllocate,marking:tMarking})[tab](out);
 }
 async function tOverview(out){
-  const [{data:st},{data:hw},{data:sub}]=await Promise.all([sb.from('students').select('*').order('name'),sb.from('homework').select('id,title').order('id'),sb.from('submissions').select('student_id,homework_id,released')]);
+  const [{data:st},{data:hw},{data:sub},{data:asg}]=await Promise.all([sb.from('students').select('*').order('name'),sb.from('homework').select('id,title').order('id'),sb.from('submissions').select('student_id,homework_id,released'),sb.from('assignments').select('student_id,homework_id')]);
   if(!st.length)return out.append(el('div',{class:'card'},'No students yet. Add them on the Students tab.'));
   const get=(s,h)=>sub.find(x=>x.student_id===s&&x.homework_id===h);
   out.append(el('div',{class:'card tw'},el('table',{},el('tr',{},el('th',{},'Student'),hw.map(h=>el('th',{title:h.title},h.id))),
-    st.map(s=>el('tr',{},el('td',{},s.name),hw.map(h=>{const x=get(s.id,h.id);return el('td',{},x?(x.released?'✓ marked':'✓ in'):'–')}))))),
-    el('p',{class:'small'},'✓ in = submitted, waiting for you. ✓ marked = marks released to the student.'));
+    st.map(s=>el('tr',{},el('td',{},s.name),hw.map(h=>{const x=get(s.id,h.id);return el('td',{},x?(x.released?'✓ marked':'✓ in'):(asg.some(a=>a.student_id===s.id&&a.homework_id===h.id)?'to do':'–'))}))))),
+    el('p',{class:'small'},'✓ in = submitted, waiting for you. ✓ marked = marks released. to do = given to the student, not yet submitted. – = not given.'));
 }
 async function tStudents(out){
   const {data:st}=await sb.from('students').select('*').order('name');
-  const nm=el('input',{type:'text',placeholder:'Student name'});
+  const nm=el('input',{type:'text',placeholder:'Student name'});const gp=el('input',{type:'text',placeholder:'Group (e.g. Group A)',list:'grplist'});const gl=el('datalist',{id:'grplist'},[...new Set(st.map(x=>x.grp).filter(Boolean))].map(g=>el('option',{value:g})));
   const msg=el('div');
   const add=async()=>{const name=nm.value.trim();if(!name)return;const alpha='abcdefghjkmnpqrstuvwxyz23456789';let code='';const b=crypto.getRandomValues(new Uint8Array(8));b.forEach(x=>code+=alpha[x%alpha.length]);
-    const {error}=await sb.from('students').insert({name,code});error?msg.replaceChildren(el('div',{class:'err'},'Could not add: '+error.message)):renderTeacher()};
-  out.append(el('div',{class:'card'},el('h2',{},'Add a student'),nm,' ',el('button',{class:'btn',onclick:add},'Add'),msg),
-    el('div',{class:'card tw'},el('table',{},el('tr',{},el('th',{},'Name'),el('th',{},'Personal code (give to the student)'),el('th',{},'')),
-      st.map(s=>el('tr',{},el('td',{},s.name),el('td',{},el('code',{},s.code)),el('td',{},el('button',{class:'btn ghost sm',onclick:async()=>{if(confirm('Remove '+s.name+' and all their work?')){await sb.from('students').delete().eq('id',s.id);renderTeacher()}}},'Remove')))))));
+    const {error}=await sb.from('students').insert({name,code,grp:gp.value.trim()||null});error?msg.replaceChildren(el('div',{class:'err'},'Could not add: '+error.message)):renderTeacher()};
+  out.append(el('div',{class:'card'},el('h2',{},'Add a student'),nm,' ',gp,gl,' ',el('button',{class:'btn',onclick:add},'Add'),msg),
+    el('div',{class:'card tw'},el('table',{},el('tr',{},el('th',{},'Name'),el('th',{},'Group'),el('th',{},'Personal code (give to the student)'),el('th',{},'')),
+      st.map(s=>el('tr',{},el('td',{},s.name),el('td',{},s.grp||'–',' ',el('button',{class:'lnk',style:'color:var(--accent)',onclick:async()=>{const g=prompt('Group for '+s.name+' (leave empty for none):',s.grp||'');if(g===null)return;await sb.from('students').update({grp:g.trim()||null}).eq('id',s.id);renderTeacher()}},'change')),el('td',{},el('code',{},s.code)),el('td',{},el('button',{class:'btn ghost sm',onclick:async()=>{if(confirm('Remove '+s.name+' and all their work?')){await sb.from('students').delete().eq('id',s.id);renderTeacher()}}},'Remove')))))));
+}
+async function tAllocate(out){
+  const [{data:hw},{data:st},{data:as},{data:sub}]=await Promise.all([sb.from('homework').select('id,title,year').order('id'),sb.from('students').select('id,name,grp').order('name'),sb.from('assignments').select('student_id,homework_id'),sb.from('submissions').select('student_id,homework_id')]);
+  if(!hw.length||!st.length)return out.append(el('div',{class:'card'},'Add students and homework first.'));
+  const A=new Set(as.map(a=>a.student_id+'|'+a.homework_id)),S=new Set(sub.map(a=>a.student_id+'|'+a.homework_id));
+  const sel=el('select',{},hw.map(h=>el('option',{value:h.id},h.id+' - '+h.title)));
+  const msg=el('div',{class:'small'}),body=el('div');
+  const set=async(ids,on)=>{const h=sel.value;msg.textContent='Saving...';
+    const r=on?await sb.from('assignments').upsert(ids.map(i=>({student_id:i,homework_id:h})),{onConflict:'student_id,homework_id'}):await sb.from('assignments').delete().eq('homework_id',h).in('student_id',ids);
+    if(r.error){msg.className='err';msg.textContent='Could not save: '+r.error.message;return}
+    msg.className='small';msg.textContent='Saved';ids.forEach(i=>on?A.add(i+'|'+h):A.delete(i+'|'+h));draw()};
+  const draw=()=>{const h=sel.value,groups={};st.forEach(s=>(groups[s.grp||'No group']=groups[s.grp||'No group']||[]).push(s));
+    body.replaceChildren(...Object.keys(groups).sort().map(g=>{const m=groups[g],ids=m.map(s=>s.id);
+      return el('div',{class:'card'},el('h2',{},g),el('div',{class:'bar'},el('button',{class:'btn sm',onclick:()=>set(ids,true)},'Give to whole group'),el('button',{class:'btn ghost sm',onclick:()=>set(ids.filter(i=>!S.has(i+'|'+h)),false)},'Take back from whole group')),
+        m.map(s=>{const cb=el('input',{type:'checkbox'});cb.checked=A.has(s.id+'|'+h);const done=S.has(s.id+'|'+h);cb.disabled=done;cb.addEventListener('change',()=>set([s.id],cb.checked));
+          return el('div',{},el('label',{},cb,' ',s.name,done?'  (submitted)':''))}))}))};
+  sel.addEventListener('change',draw);
+  out.append(el('div',{class:'card'},el('h2',{},'Choose a homework'),sel,el('p',{class:'small'},'Tick the students who should see it. Students only ever see homework you have given them. Once a student has submitted, it stays on their list.'),msg),body);draw();
 }
 async function tMarking(out){
   const {data:hw}=await sb.from('homework').select('id,title,spec').order('id');
