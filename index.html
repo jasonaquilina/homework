@@ -16,7 +16,7 @@ main{padding:24px 0 56px}h1{font-size:25px;line-height:1.2;margin:0 0 4px}h2{fon
 .item{margin:14px 0 4px}.item.mk{border-top:3px solid var(--line);margin-top:26px;padding-top:16px}.item.overall{background:#e4f3ee;border:1px solid #9fcfc0;border-radius:8px;padding:12px}@media(prefers-color-scheme:dark){.item.overall{background:#163a32;border-color:#2f7a68}}.item .lab{font-weight:500;margin-bottom:6px}
 .opts{display:flex;gap:8px;flex-wrap:wrap}.opts label{display:flex;gap:7px;align-items:center;border:1px solid var(--line);background:var(--field);border-radius:8px;padding:7px 12px;cursor:pointer;font-size:14px}
 .opts label.ok{background:var(--good-bg);border-color:var(--good)}.opts label.no{background:var(--bad-bg);border-color:var(--bad)}.opts label.miss{border:2px dashed var(--good)}
-input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}input[type=radio]{width:20px;height:20px;accent-color:var(--accent)}.gridt td:not(:first-child){background:#fff0a8;border-left:1px solid #d4a500}.gridt th{font-size:13px;color:var(--fg)}@media (prefers-color-scheme:dark){.gridt td:not(:first-child){background:#4d3f0c;border-left-color:#b8900a}}
 select,input[type=text],input[type=email],input[type=password],input[type=number],textarea{font:inherit;color:var(--fg);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
 textarea{width:100%;min-height:140px;resize:vertical}select{max-width:100%}
 select.ok{background:var(--good-bg);border-color:var(--good)}select.no{background:var(--bad-bg);border-color:var(--bad)}
@@ -133,6 +133,7 @@ function renderForm(hw){
     const c=el('div',{class:'card ask'},el('div',{class:'qhead'},el('span',{class:'qlabel'},sec.title),sec.marks&&el('span',{class:'marks'},sec.marks)),sec.help&&el('p',{class:'src'},sec.help),...figs(sec));
     if(sec.para){const its={};sec.items.forEach(i=>its[i.id]=i);const bank=sec.items[0].options;
       c.append(el('p',{class:'small'},'Word bank: '+bank.join(', ')+'. Each correct answer is worth '+(sec.items[0].marks===0.5?'½ mark':sec.items[0].marks===1?'1 mark':sec.items[0].marks+' marks')+'.'),el('p',{class:'cloze'},clozeParts(sec,id=>mkSelect(its[id]))));body.push(c);return}
+    if(sec.grid){const opts=sec.items[0].options;c.append(el('div',{class:'tw'},el('table',{class:'gridt'},el('tr',{},el('th',{},''),opts.map(o=>el('th',{},o))),sec.items.map(it=>el('tr',{},el('td',{},it.label),opts.map(o=>{const r=el('input',{type:'radio',name:'g_'+it.id,onchange:()=>{ans[it.id]=o;touch()}});r.checked=ans[it.id]===o;return el('td',{},r)}))))),el('p',{class:'small'},'Tick one box in each row.'));body.push(c);return}
     sec.items.forEach(it=>{
       const box=el('div',{class:'item'},el('div',{class:'lab'},it.label,it.marks?el('span',{class:'marks'},'  ['+it.marks+(it.marks===1?' mark':' marks')+']'):null));
       if(it.type==='multi'){ans[it.id]=ans[it.id]||[];box.append(el('div',{class:'opts'},it.options.map(o=>{const cb=el('input',{type:'checkbox',onchange:e=>{const a=ans[it.id];e.target.checked?a.push(o):a.splice(a.indexOf(o),1);touch()}});cb.checked=ans[it.id].includes(o);return el('label',{},cb,o)})))}
