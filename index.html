@@ -42,14 +42,17 @@ table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:7px 9px;b
 .faq details{border-top:1px solid var(--line);padding:8px 0;margin-top:6px}.faq details summary{cursor:pointer;font-weight:500}.faq p{margin:6px 0 0}
 .teach{background:#8b1e2d;color:#fff;border-radius:8px;padding:10px 14px;margin-top:8px;white-space:pre-wrap}.tmark{background:#8b1e2d;color:#fff;border-radius:6px;padding:1px 9px;font-weight:600;font-size:13px}
 @media (prefers-color-scheme:dark){.teach,.tmark{background:#a02c3d}}
-.foot{text-align:center;padding:0 16px 32px;font-size:13px;color:var(--muted)}.foot a{color:var(--accent)}
+.foot{text-align:center;padding:0 16px 32px;font-size:13px;color:var(--muted)}.foot a{color:var(--accent)}.legal{max-width:640px;margin:0 auto 10px;font-size:12px;line-height:1.5}.notice{border-left:4px solid #8b1e2d;background:var(--field);padding:10px 14px;border-radius:6px;font-size:13px;margin:12px 0}.printlegal{display:none}@media print{.printlegal{display:block;font-size:11px;margin-top:16px;color:#5b7380}.legal{display:none}}
 @media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact}header,.foot,.noprint,.bar{display:none!important}body{background:#fff!important;color:#17323f!important}:root{--bg:#fff;--surface:#fff;--fg:#17323f;--muted:#5b7380;--line:#d9e3e7;--accent:#2f7f8f;--good:#2e7d4f;--good-bg:#e4f3ea;--bad:#b4432f;--bad-bg:#fbe9e5;--field:#f3f8f9}.teach,.tmark{background:#8b1e2d!important;color:#fff!important}.stu{background:#dceefb!important;color:#17323f!important;border-color:#9cc9e8!important}.card{break-inside:avoid;box-shadow:none}.item{break-inside:avoid}.wrap{max-width:none}}
 </style></head><body>
 <header><div class="wrap"><div class="brand">Biology Homework<small>MATSEC Intermediate</small></div><div id="hdr"></div></div></header>
 <main><div class="wrap" id="app"></div></main>
-<footer class="foot">Having a problem with this site? Contact Jason Aquilina: <a href="mailto:jasonaquilina@gmail.com">jasonaquilina@gmail.com</a></footer>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<footer class="foot"><div id="legal" class="legal">&copy; <span id="yr"></span> Jason Aquilina. All rights reserved. This system is for the students of Jason Aquilina only. All content (questions, notes, answers, marks and feedback) must not be shared, copied or distributed to any other person. Your personal code is a password: do not share it with anyone. Examination questions quoted from MATSEC papers remain the property of their respective owner.</div>Having a problem with this site? Contact Jason Aquilina: <a href="mailto:jasonaquilina@gmail.com">jasonaquilina@gmail.com</a></footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js" integrity="sha384-0w2KAL2YHP6wKOkUDzkCDGgVvfmHnj02DHeQ6XcHOgTfFsGyonKOpShMH1x6nk9o" crossorigin="anonymous"></script>
 <script>
+document.getElementById("yr").textContent=new Date().getFullYear();
+const NOTICE="For Jason Aquilina's students only. Do not share your code or any content from this site.";
+const lockMsg=e=>{const m=(e&&e.message)||"";return /locked/i.test(m)?"Too many wrong attempts. Please wait 10 minutes and try again.":/blocked/i.test(m)?"Your access has been paused. Please contact Jason Aquilina.":null};
 const SB_URL='https://esvgegiqocjntsoaypck.supabase.co', SB_KEY='sb_publishable_-uXGBdw4DopnP-J7IEhF3w_jnjtSROW';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 const $app=document.getElementById('app'),$hdr=document.getElementById('hdr');
@@ -87,7 +90,7 @@ function studentHome(){
   CODE=store('code');
   if(!CODE){return studentLogin()}
   sb.rpc('student_login',{p_code:CODE}).then(({data,error})=>{
-    if(error||!data){store('code',null);CODE=null;return studentLogin(error?'Something went wrong. Please try again.':'That code was not recognised.')}
+    if(error||!data){store('code',null);CODE=null;return studentLogin(error?(lockMsg(error)||'Something went wrong. Please try again.'):'That code was not recognised.')}
     ME=data;ME.homework.forEach(h=>{if(h.status==='draft'){h.draft=true;h.status='todo'}});$hdr.append(el('span',{class:'small',style:'color:#fff'},ME.name+'  '),el('button',{class:'lnk',onclick:()=>{store('code',null);studentHome()}},'Sign out'));
     const rows=ME.homework.length?ME.homework.map(h=>el('div',{class:'hwrow'},
       el('div',{},el('b',{},'Homework '+h.id.replace('HW','')+': '+h.title),el('div',{class:'meta'},'Year '+h.year)),
@@ -100,7 +103,7 @@ function studentLogin(msg){
   const inp=el('input',{type:'text',autocomplete:'off',autocapitalize:'off',placeholder:'Your personal code',style:'width:100%;max-width:300px'});
   const go=()=>{const c=inp.value.trim();if(!c)return;store('code',c);studentHome()};
   inp.addEventListener('keydown',e=>{if(e.key==='Enter')go()});
-  show(el('h1',{},'Sign in'),el('p',{class:'meta'},'Type the personal code your teacher gave you.'),
+  show(el('h1',{},'Sign in'),el('p',{class:'meta'},'Type the personal code your teacher gave you.'),el('div',{class:'notice'},NOTICE),
     el('div',{class:'card'},inp,el('div',{class:'bar'},el('button',{class:'btn',onclick:go},'Continue')),msg&&el('div',{class:'err'},msg)),
     helpPanel(),el('p',{class:'small'},'This site stores your name, your answers and any photos you upload, so your teacher can mark them. Nothing else is collected.'));
 }
@@ -119,8 +122,8 @@ function renderForm(hw){
   const stat=el('div',{class:'small',style:'margin-top:10px'},hw.draft?'Your saved answers have been restored.':'');
   let dirty=false,timer=null,busy=false;
   const save=async manual=>{if(busy)return false;if(!dirty&&!manual)return true;busy=true;stat.className='small';stat.textContent='Saving...';
-    const {error}=await sb.rpc('save_draft',{p_code:CODE,p_hw:hw.id,p_answers:ans});busy=false;
-    if(error){stat.className='err';stat.textContent='Could not save. Please check your connection and try again.';return false}
+    const {data:sd,error}=await sb.rpc('save_draft',{p_code:CODE,p_hw:hw.id,p_answers:ans});busy=false;
+    if(error||(sd&&sd.ok===false)){stat.className='err';stat.textContent='Could not save. Please check your connection and try again.';return false}
     dirty=false;stat.className='small';stat.textContent='Draft saved at '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});return true};
   const touch=()=>{dirty=true;clearTimeout(timer);timer=setTimeout(()=>save(false),8000)};
   const mkSelect=it=>{const s=el('select',{onchange:e=>{ans[it.id]=e.target.value;touch()}},el('option',{value:''},'Choose...'),it.options.map(o=>el('option',{value:o},o)));s.value=ans[it.id]||'';return s};
@@ -135,7 +138,7 @@ function renderForm(hw){
       else if(it.type==='text'){const t=el('textarea',{oninput:e=>{ans[it.id]=e.target.value;touch()}});t.value=ans[it.id]||'';box.append(t)}
       else if(it.type==='upload'){const prev=el('div',{});if(ans[it.id])prev.append(el('div',{class:'ok-msg'},'Your photo is saved. Choose another photo only if you want to replace it.'));
         const inp=el('input',{type:'file',accept:'image/*',onchange:async e=>{const f=e.target.files[0];if(!f)return;prev.replaceChildren(el('span',{class:'small'},'Uploading photo...'));
-          try{const bl=await shrink(f);const p='hw/'+hw.id+'/'+crypto.randomUUID()+'.jpg';const {error}=await sb.storage.from('drawings').upload(p,bl,{contentType:'image/jpeg'});if(error)throw error;ans[it.id]=[p];prev.replaceChildren(el('img',{class:'photo',src:URL.createObjectURL(bl)}),el('div',{class:'small'},'Photo uploaded and saved.'));dirty=true;save(true)}
+          try{const bl=await shrink(f);const {data:sl,error:se}=await sb.rpc('request_upload',{p_code:CODE,p_hw:hw.id});if(se||!sl||sl.ok===false)throw new Error('slot');const p=sl.path;const {error}=await sb.storage.from('drawings').upload(p,bl,{contentType:'image/jpeg'});if(error)throw error;ans[it.id]=[p];prev.replaceChildren(el('img',{class:'photo',src:URL.createObjectURL(bl)}),el('div',{class:'small'},'Photo uploaded and saved.'));dirty=true;save(true)}
           catch(x){prev.replaceChildren(el('div',{class:'err'},'The photo could not be uploaded. Please try again.'))}}});
         box.append(el('p',{class:'small'},'Take a clear photo of your drawing and add it here.'),inp,prev)}
       c.append(box)});
@@ -152,8 +155,8 @@ function renderForm(hw){
   async function doSubmit(){
     clearTimeout(timer);btn.disabled=true;msg.replaceChildren(el('p',{class:'small'},'Submitting...'));
     try{const paths=[];hw.spec.sections.forEach(s=>s.items.forEach(i=>{if(i.type==='upload'&&ans[i.id])paths.push(...[].concat(ans[i.id]))}));
-      const {error}=await sb.rpc('submit_homework',{p_code:CODE,p_hw:hw.id,p_answers:ans,p_photos:paths});
-      if(error)throw error;
+      const {data:sr,error}=await sb.rpc('submit_homework',{p_code:CODE,p_hw:hw.id,p_answers:ans,p_photos:paths});
+      if(error)throw error;if(sr&&sr.ok===false)throw new Error(sr.error||'failed');
       show(el('h1',{},'Submitted'),el('div',{class:'ok-msg'},'Your homework has been sent. Your marks will appear here after your teacher has marked it.'),el('div',{class:'bar'},el('button',{class:'btn',onclick:studentHome},'Back to my homework')));
     }catch(e){btn.disabled=false;msg.replaceChildren(el('div',{class:'err'},/already/.test(e.message||'')?'This homework has already been submitted.':'Could not submit. Please check your connection and try again.'))}
   }
@@ -163,7 +166,7 @@ function showResult(h){
   sb.rpc('get_result',{p_code:CODE,p_hw:h.id}).then(({data:r})=>{
     if(!r||!r.released)return show(el('div',{class:'card'},'Not marked yet.'),el('button',{class:'btn ghost',onclick:studentHome},'Back'));
     const total=sumObj(r.auto_marks)+sumObj(r.manual_marks);
-    const body=[el('h1',{},h.title),el('p',{class:'meta'},(ME&&ME.name?ME.name+'  |  ':'')+new Date().toLocaleDateString()),el('div',{class:'noprint'},el('button',{class:'btn ghost sm',onclick:()=>window.print()},'Save as PDF / Print')),el('div',{class:'card'},el('h2',{},'Your mark: ',el('span',{class:'tmark'},fmt(total)+' / '+maxMarks(r.spec))),(r.feedback&&r.feedback._overall)?el('div',{class:'teach',style:'margin-top:10px'},el('b',{},'Teacher comment: '),r.feedback._overall):null)];
+    const body=[el('h1',{},h.title),el('p',{class:'meta'},(ME&&ME.name?ME.name+'  |  ':'')+new Date().toLocaleDateString()),el('div',{class:'noprint'},el('button',{class:'btn ghost sm',onclick:()=>window.print()},'Save as PDF / Print')),el('div',{class:'notice'},'If you disagree with any corrected answer, or you would like to understand why an answer was marked wrong, please contact Jason Aquilina at jasonaquilina@gmail.com.'),el('div',{class:'card'},el('h2',{},'Your mark: ',el('span',{class:'tmark'},fmt(total)+' / '+maxMarks(r.spec))),(r.feedback&&r.feedback._overall)?el('div',{class:'teach',style:'margin-top:10px'},el('b',{},'Teacher comment: '),r.feedback._overall):null)];
     r.spec.sections.forEach(sec=>{const c=el('div',{class:'card'},el('span',{class:'qlabel'},sec.title),sec.help&&el('p',{class:'src'},sec.help));
       if(sec.para){const ok=sec.items.filter(i=>(+r.auto_marks[i.id]||0)>=(i.marks||0)).length;c.append(el('p',{class:'cloze'},clozeParts(sec,id=>{const a=r.answers[id],k=r.key[id],m=+r.auto_marks[id]||0,i=sec.items.find(x=>x.id===id);return m>=(i.marks||0)?el('span',{class:'czr ok'},a):el('span',{class:'czr no'},el('s',{},a||'(blank)'),' → ',[].concat(k.answer).concat(k.alts||[]).join(' / '))})),el('p',{class:'small'},'Blanks correct: '+ok+' of '+sec.items.length));body.push(c);return}
       sec.items.forEach(it=>{const k=r.key[it.id],a=r.answers[it.id],m=(it.id in r.auto_marks)?r.auto_marks[it.id]:r.manual_marks[it.id];
@@ -173,7 +176,7 @@ function showResult(h){
         else if(it.type==='text')row.append(el('div',{class:'small',style:'white-space:pre-wrap'},a||'(no answer)'));
         else{const si=(r.student_imgs||{})[it.id];if(si)row.append(el('div',{class:'small',style:'margin-bottom:4px'},'Your drawing:'),el('div',{class:'stu'},el('img',{class:'photo',src:si,style:'background:#fff'})));else row.append(el('div',{class:'small'},'Drawing marked by your teacher.'))}
         {const f=(r.feedback||{})[it.id];if(f)row.append(el('div',{class:'teach'},el('b',{},'Teacher feedback: '),f))}{const im=(r.feedback_imgs||{})[it.id];if(im)row.append(el('div',{class:'teach'},el('b',{},'Teacher feedback image:'),el('img',{class:'photo',src:im,style:'display:block;background:#fff'})))}c.append(row)});body.push(c)});
-    body.push(el('div',{class:'bar'},el('button',{class:'btn ghost',onclick:studentHome},'Back')));show(body)});
+    body.push(el('div',{class:'printlegal'},'\u00a9 '+new Date().getFullYear()+' Jason Aquilina. For the personal use of Jason Aquilina\'s students only. Not to be shared, copied or distributed.'),el('div',{class:'bar'},el('button',{class:'btn ghost',onclick:studentHome},'Back')));show(body)});
 }
 
 /* ---------- TEACHER ---------- */
@@ -193,10 +196,23 @@ function teacherLogin(msg){
   p.addEventListener('keydown',x=>{if(x.key==='Enter')go()});
   show(el('h1',{},'Teacher sign-in'),el('div',{class:'card'},el('div',{},e),el('div',{style:'margin-top:8px'},p),el('div',{class:'bar'},el('button',{class:'btn',onclick:go},'Sign in')),msg&&el('div',{class:'err'},msg)));
 }
+
+function tBackup(out){
+  const inc=el('input',{type:'checkbox'}),st=el('div',{class:'small',style:'margin-top:10px'});
+  const b2d=b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(b)});
+  const go=async()=>{st.className='small';st.textContent='Collecting data...';
+    try{const T=['students','groups','homework','assignments','submissions','drafts','comment_snippets'],o={exported_at:new Date().toISOString()};
+      for(const t of T){const {data,error}=await sb.from(t).select('*');if(error)throw new Error(t+': '+error.message);o[t]=data}
+      if(inc.checked){o.drawings={};const ps=[...new Set((o.submissions||[]).flatMap(x=>x.photo_paths||[]))];let i=0;for(const p of ps){i++;st.textContent='Downloading drawings '+i+' of '+ps.length+'...';const {data,error}=await sb.storage.from('drawings').download(p);if(!error&&data)o.drawings[p]=await b2d(data)}}
+      const bl=new Blob([JSON.stringify(o)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(bl);a.download='biology-homework-backup-'+new Date().toISOString().slice(0,10)+'.json';document.body.append(a);a.click();a.remove();
+      st.textContent='Backup downloaded ('+Math.round(bl.size/1024)+' KB). Keep it somewhere safe, for example your own cloud storage.'}
+    catch(e){st.className='err';st.textContent='Backup failed: '+e.message}};
+  out.append(el('div',{class:'card'},el('h2',{},'Backup'),el('p',{class:'small'},'Download a copy of all your data (students, groups, homework, allocations, submissions, drafts, marks, feedback and saved comments) as one file. The free Supabase plan has no automatic backups, so do this regularly, for example after each marking session. The file contains student codes and names, so store it privately.'),el('label',{class:'small'},inc,' Also include students\' drawings (makes the file larger)'),el('div',{class:'bar'},el('button',{class:'btn',onclick:go},'Download backup')),st))
+}
 function renderTeacher(){
-  const t=el('div',{class:'tabs'},['overview','students','allocate','marking'].map(k=>el('button',{'aria-pressed':tab===k?'true':'false',onclick:()=>{tab=k;renderTeacher()}},{overview:'Overview',students:'Students',allocate:'Allocate homework',marking:'Marking'}[k])));
+  const t=el('div',{class:'tabs'},['overview','students','allocate','marking','backup'].map(k=>el('button',{'aria-pressed':tab===k?'true':'false',onclick:()=>{tab=k;renderTeacher()}},{overview:'Overview',students:'Students',allocate:'Allocate homework',marking:'Marking',backup:'Backup'}[k])));
   const out=el('div',{});t.append(el('button',{class:'btn ghost sm',style:'margin-left:auto',onclick:renderTeacher},'↻ Refresh'),el('span',{class:'small',style:'align-self:center'},'Updated '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})));show(el('h1',{},'Teacher'),t,out);
-  ({overview:tOverview,students:tStudents,allocate:tAllocate,marking:tMarking})[tab](out);
+  ({overview:tOverview,students:tStudents,allocate:tAllocate,marking:tMarking,backup:tBackup})[tab](out);
 }
 async function tOverview(out){
   const [{data:st},{data:hw},{data:sub},{data:asg},{data:drf}]=await Promise.all([sb.from('students').select('*').order('name'),sb.from('homework').select('id,title').order('id'),sb.from('submissions').select('student_id,homework_id,released'),sb.from('assignments').select('student_id,homework_id'),sb.from('drafts').select('student_id,homework_id')]);
@@ -222,7 +238,7 @@ async function tStudents(out){
       el('div',{style:'margin-top:8px'},gn,' ',el('button',{class:'btn',onclick:addG},'Add group')),gmsg),
     el('div',{class:'card'},el('h2',{},'Add a student'),nm,' ',gp,' ',el('button',{class:'btn',onclick:add},'Add'),msg),
     el('div',{class:'card tw'},el('table',{},el('tr',{},el('th',{},'Name'),el('th',{},'Group'),el('th',{},'Personal code (give to the student)'),el('th',{},'')),
-      st.map(s=>el('tr',{},el('td',{},s.name),el('td',{},gsel(s.grp,async sel=>{const {error}=await sb.from('students').update({grp:sel.value||null}).eq('id',s.id);if(error)alert('Could not save the group.')})),el('td',{},el('code',{},s.code)),el('td',{},el('button',{class:'btn ghost sm',onclick:async()=>{if(confirm('Remove '+s.name+' and all their work?')){await sb.from('students').delete().eq('id',s.id);renderTeacher()}}},'Remove')))))));
+      st.map(s=>el('tr',{style:s.blocked?'opacity:.6':''},el('td',{},s.name,s.blocked?el('span',{class:'pill todo',style:'margin-left:8px'},'Blocked'):null),el('td',{},gsel(s.grp,async sel=>{const {error}=await sb.from('students').update({grp:sel.value||null}).eq('id',s.id);if(error)alert('Could not save the group.')})),el('td',{},el('code',{},s.code)),el('td',{},el('button',{class:'btn ghost sm',onclick:async()=>{const nb=!s.blocked;if(nb&&!confirm('Block '+s.name+'? They will not be able to sign in or see anything until you unblock them. Their work is kept.'))return;const {error}=await sb.from('students').update({blocked:nb}).eq('id',s.id);if(error)alert('Could not update: '+error.message);else renderTeacher()}},s.blocked?'Unblock':'Block'),' ',el('button',{class:'btn ghost sm',onclick:async()=>{if(confirm('Remove '+s.name+' and all their work?')){await sb.from('students').delete().eq('id',s.id);renderTeacher()}}},'Remove')))))));
 }
 async function tAllocate(out){
   const [{data:hw},{data:st},{data:as},{data:sub}]=await Promise.all([sb.from('homework').select('id,title,year').order('id'),sb.from('students').select('id,name,grp').order('name'),sb.from('assignments').select('student_id,homework_id'),sb.from('submissions').select('student_id,homework_id')]);
