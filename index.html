@@ -225,18 +225,19 @@ async function tAllocate(out){
 let SNIPS=[],PICKERS=[];
 function fillPicker(p){p.replaceChildren(el('option',{value:''},'Insert a saved comment...'),SNIPS.map(x=>el('option',{value:String(x.id)},x.text.length>70?x.text.slice(0,70)+'...':x.text)));p.value=''}
 function refreshPickers(){PICKERS.forEach(fillPicker)}
-async function saveSnippet(t){t=(t||'').trim();if(!t||SNIPS.some(s=>s.text===t))return false;const {data,error}=await sb.from('comment_snippets').insert({text:t}).select().single();if(error){alert('Could not save the comment.');return false}SNIPS.push(data);SNIPS.sort((a,b)=>a.text.localeCompare(b.text));refreshPickers();return true}
+let SNIPDRAW=null;
+async function saveSnippet(t){t=(t||'').trim();if(!t)return 'empty';if(SNIPS.some(s=>s.text===t))return 'dup';const {data,error}=await sb.from('comment_snippets').insert({text:t}).select().single();if(error)return 'error';SNIPS.push(data);SNIPS.sort((a,b)=>a.text.localeCompare(b.text));refreshPickers();if(SNIPDRAW)SNIPDRAW();return 'saved'}
 function commentTools(ta,onchange){
   const p=el('select',{style:'max-width:100%'});fillPicker(p);PICKERS.push(p);
   p.addEventListener('change',()=>{const x=SNIPS.find(s=>String(s.id)===p.value);if(!x)return;ta.value=(ta.value.trim()?ta.value.trimEnd()+' ':'')+x.text;onchange(ta.value);p.value=''});
-  const sv=el('button',{class:'btn ghost sm',onclick:()=>saveSnippet(ta.value)},'Save this as a reusable comment');
-  return el('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:6px'},p,sv)}
+  const note=el('span',{class:'small'});const sv=el('button',{class:'btn ghost sm',onclick:async()=>{note.textContent='Saving...';const st=await saveSnippet(ta.value);note.textContent={empty:'Type a comment first.',dup:'Already in your saved list.',saved:'Saved. It is now in the dropdown list.',error:'Could not save. Please try again.'}[st]}},'Save this as a reusable comment');
+  return el('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;align-items:center'},p,sv,note)}
 function snippetManager(){
   const box=el('details',{class:'card'},el('summary',{style:'cursor:pointer;font-weight:600'},'Saved comments'));
   const inp=el('input',{type:'text',placeholder:'Type a new reusable comment',style:'width:100%;max-width:520px'});
   const listEl=el('div');
   const draw=()=>{box.querySelector('summary').textContent='Saved comments ('+SNIPS.length+')';listEl.replaceChildren(...SNIPS.map(s=>el('div',{style:'display:flex;gap:8px;align-items:center;margin-top:6px'},el('span',{style:'flex:1'},s.text),el('button',{class:'btn ghost sm',onclick:async()=>{await sb.from('comment_snippets').delete().eq('id',s.id);SNIPS=SNIPS.filter(x=>x.id!==s.id);refreshPickers();draw()}},'Remove'))))};
-  box.append(el('div',{style:'margin-top:10px'},inp,' ',el('button',{class:'btn sm',onclick:async()=>{if(await saveSnippet(inp.value)){inp.value='';draw()}}},'Add')),listEl);draw();return box}
+  box.append(el('div',{style:'margin-top:10px'},inp,' ',el('button',{class:'btn sm',onclick:async()=>{if(await saveSnippet(inp.value)==='saved')inp.value=''}},'Add')),listEl);SNIPDRAW=draw;draw();return box}
 async function tMarking(out){
   const {data:hw}=await sb.from('homework').select('id,title,spec,key').order('id');const {data:sn}=await sb.from('comment_snippets').select('id,text').order('text');SNIPS=sn||[];
   const sel=el('select',{},hw.map(h=>el('option',{value:h.id},h.id+' '+h.title)));
