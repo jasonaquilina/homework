@@ -219,13 +219,28 @@ async function tAllocate(out){
   sel.addEventListener('change',draw);
   out.append(el('div',{class:'card'},el('h2',{},'Choose a homework'),sel,el('p',{class:'small'},'Tick the students who should see it. Students only ever see homework you have given them. Once a student has submitted, it stays on their list.'),msg),body);draw();
 }
+let SNIPS=[],PICKERS=[];
+function fillPicker(p){p.replaceChildren(el('option',{value:''},'Insert a saved comment...'),SNIPS.map(x=>el('option',{value:String(x.id)},x.text.length>70?x.text.slice(0,70)+'...':x.text)));p.value=''}
+function refreshPickers(){PICKERS.forEach(fillPicker)}
+async function saveSnippet(t){t=(t||'').trim();if(!t||SNIPS.some(s=>s.text===t))return false;const {data,error}=await sb.from('comment_snippets').insert({text:t}).select().single();if(error){alert('Could not save the comment.');return false}SNIPS.push(data);SNIPS.sort((a,b)=>a.text.localeCompare(b.text));refreshPickers();return true}
+function commentTools(ta,onchange){
+  const p=el('select',{style:'max-width:100%'});fillPicker(p);PICKERS.push(p);
+  p.addEventListener('change',()=>{const x=SNIPS.find(s=>String(s.id)===p.value);if(!x)return;ta.value=(ta.value.trim()?ta.value.trimEnd()+' ':'')+x.text;onchange(ta.value);p.value=''});
+  const sv=el('button',{class:'btn ghost sm',onclick:()=>saveSnippet(ta.value)},'Save this as a reusable comment');
+  return el('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:6px'},p,sv)}
+function snippetManager(){
+  const box=el('details',{class:'card'},el('summary',{style:'cursor:pointer;font-weight:600'},'Saved comments'));
+  const inp=el('input',{type:'text',placeholder:'Type a new reusable comment',style:'width:100%;max-width:520px'});
+  const listEl=el('div');
+  const draw=()=>{box.querySelector('summary').textContent='Saved comments ('+SNIPS.length+')';listEl.replaceChildren(...SNIPS.map(s=>el('div',{style:'display:flex;gap:8px;align-items:center;margin-top:6px'},el('span',{style:'flex:1'},s.text),el('button',{class:'btn ghost sm',onclick:async()=>{await sb.from('comment_snippets').delete().eq('id',s.id);SNIPS=SNIPS.filter(x=>x.id!==s.id);refreshPickers();draw()}},'Remove'))))};
+  box.append(el('div',{style:'margin-top:10px'},inp,' ',el('button',{class:'btn sm',onclick:async()=>{if(await saveSnippet(inp.value)){inp.value='';draw()}}},'Add')),listEl);draw();return box}
 async function tMarking(out){
-  const {data:hw}=await sb.from('homework').select('id,title,spec').order('id');
+  const {data:hw}=await sb.from('homework').select('id,title,spec').order('id');const {data:sn}=await sb.from('comment_snippets').select('id,text').order('text');SNIPS=sn||[];
   const sel=el('select',{},hw.map(h=>el('option',{value:h.id},h.id+' '+h.title)));
-  const list=el('div',{});out.append(el('div',{class:'card'},sel),list);
+  const list=el('div',{});out.append(el('div',{class:'card'},sel),snippetManager(),list);
   const load=async()=>{const h=hw.find(x=>x.id===sel.value);
     const [{data:sub},{data:st}]=await Promise.all([sb.from('submissions').select('*').eq('homework_id',h.id).order('submitted_at'),sb.from('students').select('id,name')]);
-    list.replaceChildren();if(!sub||!sub.length)return list.append(el('div',{class:'card'},'No submissions yet.'));
+    list.replaceChildren();PICKERS=[];if(!sub||!sub.length)return list.append(el('div',{class:'card'},'No submissions yet.'));
     const relAll=el('button',{class:'btn',onclick:async()=>{await sb.from('submissions').update({released:true}).eq('homework_id',h.id);load()}},'Release marks for all');
     list.append(el('div',{class:'bar'},el('span',{class:'meta'},sub.length+' submitted'),relAll));
     sub.forEach(s=>list.append(markCard(h,s,st.find(x=>x.id===s.student_id),load)))};
@@ -239,9 +254,9 @@ function markCard(h,s,stu,reload){
     if(it.type==='text'||it.type==='upload'){const row=el('div',{class:'item'},el('div',{class:'lab'},it.label));
       if(it.type==='text')row.append(el('div',{style:'white-space:pre-wrap;background:var(--field);padding:10px;border-radius:8px'},s.answers[it.id]||'(no answer)'));
       else{const p=(s.answers[it.id]||[])[0];if(p){const im=el('img',{class:'photo',alt:'drawing'});sb.storage.from('drawings').createSignedUrl(p,3600).then(({data})=>{if(data)im.src=data.signedUrl});row.append(im)}else row.append(el('div',{class:'small'},'(no photo)'))}
-      row.append(el('div',{style:'margin-top:8px'},'Mark: ',el('input',{type:'number',min:0,max:it.marks,step:0.5,style:'width:80px',value:manual[it.id]??'',oninput:e=>{manual[it.id]=e.target.value===''?0:+e.target.value;upd()}}),' / '+it.marks));const ta=el('textarea',{placeholder:'Comment for the student (optional)',style:'min-height:60px;margin-top:8px',oninput:e=>{const v=e.target.value;v.trim()?fb[it.id]=v:delete fb[it.id]}});ta.value=fb[it.id]||'';row.append(ta);c.append(row)}}));
+      row.append(el('div',{style:'margin-top:8px'},'Mark: ',el('input',{type:'number',min:0,max:it.marks,step:0.5,style:'width:80px',value:manual[it.id]??'',oninput:e=>{manual[it.id]=e.target.value===''?0:+e.target.value;upd()}}),' / '+it.marks));const ta=el('textarea',{placeholder:'Comment for the student (optional)',style:'min-height:60px;margin-top:8px',oninput:e=>{const v=e.target.value;v.trim()?fb[it.id]=v:delete fb[it.id]}});ta.value=fb[it.id]||'';row.append(ta,commentTools(ta,v=>{v.trim()?fb[it.id]=v:delete fb[it.id]}));c.append(row)}}));
   const msg=el('span',{class:'small'});
-  const ov=el('textarea',{placeholder:'Overall comment for the student (optional)',style:'min-height:70px',oninput:e=>{const v=e.target.value;v.trim()?fb._overall=v:delete fb._overall}});ov.value=fb._overall||'';c.append(el('div',{class:'item'},el('div',{class:'lab'},'Overall comment'),ov));
+  const ov=el('textarea',{placeholder:'Overall comment for the student (optional)',style:'min-height:70px',oninput:e=>{const v=e.target.value;v.trim()?fb._overall=v:delete fb._overall}});ov.value=fb._overall||'';c.append(el('div',{class:'item'},el('div',{class:'lab'},'Overall comment'),ov,commentTools(ov,v=>{v.trim()?fb._overall=v:delete fb._overall})));
   const save=async rel=>{const {error}=await sb.from('submissions').update({manual_marks:manual,feedback:fb,released:rel??s.released}).eq('id',s.id);error?msg.textContent='Could not save':(msg.textContent='Saved',rel!==undefined&&reload())};
   c.append(el('div',{class:'bar'},el('div',{},'Total: ',el('b',{},tot),' ',s.released?el('span',{class:'pill done'},'released'):null,' ',msg),el('div',{},el('button',{class:'btn ghost sm',onclick:()=>save()},'Save marks'),' ',el('button',{class:'btn sm',onclick:()=>save(!s.released)},s.released?'Hide marks':'Save & release'))));
   upd();return c;
