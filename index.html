@@ -98,8 +98,45 @@ function studentHome(){
       el('div',{},el('b',{},'Homework '+h.id.replace('HW','')+': '+h.title),el('div',{class:'meta'},'Year '+h.year)),
       el('div',{},el('span',{class:'pill '+(h.status==='todo'?'todo':h.status==='submitted'?'sub':'done')},h.status==='todo'?(h.draft?'In progress (saved)':'To do'):h.status==='submitted'?'Submitted, awaiting marking':'Marked'),' ',
         el('button',{class:'btn sm '+(h.status==='todo'?'':'ghost'),onclick:()=>openHw(h)},h.status==='todo'?(h.draft?'Continue':'Start'):h.status==='submitted'?'View':'See marks')))):[el('p',{class:'meta'},'No homework is open right now.')];
-    show(el('h1',{},'Hello, '+ME.name),el('p',{class:'meta'},'You have one attempt at each homework. Marks and correct answers appear after your teacher has marked it.'),el('div',{class:'card'},rows),helpPanel());
+    show(el('h1',{},'Hello, '+ME.name),el('p',{class:'meta'},'You have one attempt at each homework. Marks and correct answers appear after your teacher has marked it.'),el('div',{class:'card'},rows),picCard(),helpPanel());
   });
+}
+function picCard(){
+  const kind=el('select',{style:'max-width:100%'},['A drawing I made','A question from school or class','Notes or a worksheet','Something else'].map(k=>el('option',{value:k},k)));
+  const note=el('input',{type:'text',maxlength:'200',placeholder:'What is it? For example: my drawing of the heart for HW131',style:'width:100%'});
+  const file=el('input',{type:'file',accept:'image/*,application/pdf'});
+  const st=el('div',{class:'small',style:'margin-top:8px'});const list=el('div',{style:'margin-top:12px'});
+  const loadList=()=>sb.rpc('my_pics',{p_code:CODE}).then(({data})=>{list.replaceChildren(...((data||[]).length?[el('div',{class:'small'},el('b',{},'What you have sent')),...data.slice(0,15).map(p=>el('div',{class:'small',style:'margin-top:6px;padding:6px 8px;border:1px solid var(--line);border-radius:8px'},new Date(p.at).toLocaleDateString()+': '+(p.kind||'')+(p.note?' - '+p.note:''),p.done?el('span',{class:'pill done',style:'margin-left:6px'},'Seen'):el('span',{class:'pill sub',style:'margin-left:6px'},'Sent'),p.reply?el('div',{class:'teach',style:'margin-top:4px'},el('b',{},'Reply: '),p.reply):''))]:[]))});
+  const go=async()=>{const f=file.files[0];const n=note.value.trim();if(!n){st.className='err';st.textContent='Please write what the picture or file is.';return}if(!f){st.className='err';st.textContent='Please choose a photo or a PDF.';return}
+    const pdf=f.type==='application/pdf'||/\.pdf$/i.test(f.name);if(pdf&&f.size>5000000){st.className='err';st.textContent='That PDF is too large (limit 5 MB).';return}
+    st.className='small';st.textContent='Sending...';btn.disabled=true;
+    try{const bl=pdf?f:await shrink(f);const {data:sl,error:se}=await sb.rpc('request_pic_upload',{p_code:CODE,p_ext:pdf?'pdf':'jpg'});if(se||!sl||sl.ok===false)throw new Error(sl&&sl.error||'slot');
+      const {error}=await sb.storage.from('drawings').upload(sl.path,bl,{contentType:pdf?'application/pdf':'image/jpeg'});if(error)throw error;
+      const {data:r,error:e2}=await sb.rpc('submit_pic',{p_code:CODE,p_path:sl.path,p_kind:kind.value,p_note:n});if(e2||!r||r.ok===false)throw new Error('save');
+      st.className='ok-msg';st.textContent='Sent. Your teacher will take a look.';note.value='';file.value='';loadList()}
+    catch(x){st.className='err';st.textContent=(x&&x.message&&x.message.startsWith('Daily'))?x.message:'Could not send. Check that it is a photo or a PDF under 5 MB, then try again.'}
+    btn.disabled=false};
+  const btn=el('button',{class:'btn',onclick:go},'Send');
+  loadList();
+  return el('div',{class:'card'},el('h2',{},'Send a picture to your teacher'),el('p',{class:'small'},'Use this to show your teacher a drawing, a question from school, or anything else you want checked. It does not matter which homework you are on. A photo or a PDF is fine.'),el('div',{style:'display:grid;gap:8px;max-width:520px'},kind,note,file,el('div',{},btn)),st,list)
+}
+async function tPics(out){
+  const [{data:ps,error},{data:ss}]=await Promise.all([sb.from('student_pics').select('*').order('created_at',{ascending:false}),sb.from('students').select('id,name')]);
+  if(error){out.append(el('div',{class:'err'},'Could not load: '+error.message));return}
+  const nm={};(ss||[]).forEach(s=>nm[s.id]=s.name);
+  if(!(ps||[]).length){out.append(el('div',{class:'card'},el('h2',{},'Pictures from students'),el('p',{class:'small'},'Nothing has been sent yet.')));return}
+  const card=el('div',{class:'card'},el('h2',{},'Pictures from students'));out.append(card);
+  for(const p of ps){
+    const {data:u}=await sb.storage.from('drawings').createSignedUrl(p.path,3600);const url=u&&u.signedUrl;const pdf=/\.pdf$/i.test(p.path);
+    const ta=el('textarea',{rows:'2',style:'width:100%',placeholder:'Reply to the student (optional)'});ta.value=p.reply||'';
+    const msg=el('span',{class:'small',style:'margin-left:8px'});
+    const done=el('input',{type:'checkbox',onchange:async()=>{const {error:e}=await sb.from('student_pics').update({done:done.checked}).eq('id',p.id);msg.textContent=e?'Could not save':'Saved'}});done.checked=!!p.done;
+    card.append(el('div',{class:'item',style:p.done?'opacity:.65':''},
+      el('div',{class:'lab'},(nm[p.student_id]||'Student')+'  ',el('span',{class:'small'},new Date(p.created_at).toLocaleString()+'  |  '+(p.kind||''))),
+      p.note?el('div',{style:'margin:4px 0'},p.note):'',
+      url?(pdf?el('a',{href:url,target:'_blank',rel:'noopener',style:'font-weight:600'},'Open PDF'):el('img',{class:'photo',src:url,style:'display:block;background:#fff'})):el('div',{class:'err'},'File not available'),
+      el('div',{style:'margin-top:8px'},ta),
+      el('div',{style:'margin-top:6px'},el('button',{class:'btn ghost sm',onclick:async()=>{const {error:e}=await sb.from('student_pics').update({reply:ta.value.trim()||null}).eq('id',p.id);msg.textContent=e?'Could not save':'Reply saved'}},'Save reply'),el('label',{style:'margin-left:12px;font-size:13px'},done,' Done'),msg)))}
 }
 function studentLogin(msg){
   const inp=el('input',{type:'text',autocomplete:'off',autocapitalize:'off',placeholder:'Your personal code',style:'width:100%;max-width:300px'});
@@ -220,9 +257,9 @@ function tBackup(out){
   out.append(el('div',{class:'card'},el('h2',{},'Backup'),el('p',{class:'small'},'Download a copy of all your data (students, groups, homework, allocations, submissions, drafts, marks, feedback and saved comments) as one file. The free Supabase plan has no automatic backups, so do this regularly, for example after each marking session. The file contains student codes and names, so store it privately.'),el('label',{class:'small'},inc,' Also include students\' drawings (makes the file larger)'),el('div',{class:'bar'},el('button',{class:'btn',onclick:go},'Download backup')),st))
 }
 function renderTeacher(){
-  const t=el('div',{class:'tabs'},['overview','students','allocate','marking','backup'].map(k=>el('button',{'aria-pressed':tab===k?'true':'false',onclick:()=>{tab=k;renderTeacher()}},{overview:'Overview',students:'Students',allocate:'Allocate homework',marking:'Marking',backup:'Backup'}[k])));
+  const t=el('div',{class:'tabs'},['overview','students','allocate','marking','pics','backup'].map(k=>el('button',{'aria-pressed':tab===k?'true':'false',onclick:()=>{tab=k;renderTeacher()}},{overview:'Overview',students:'Students',allocate:'Allocate homework',marking:'Marking',pics:'Pictures',backup:'Backup'}[k])));
   const out=el('div',{});t.append(el('button',{class:'btn ghost sm',style:'margin-left:auto',onclick:renderTeacher},'↻ Refresh'),el('span',{class:'small',style:'align-self:center'},'Updated '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})));show(el('h1',{},'Teacher'),t,out);
-  ({overview:tOverview,students:tStudents,allocate:tAllocate,marking:tMarking,backup:tBackup})[tab](out);
+  ({overview:tOverview,students:tStudents,allocate:tAllocate,marking:tMarking,pics:tPics,backup:tBackup})[tab](out);
 }
 async function tOverview(out){
   const [{data:st},{data:hw},{data:sub},{data:asg},{data:drf}]=await Promise.all([sb.from('students').select('*').eq('archived',false).order('name'),sb.from('homework').select('id,title').order('id'),sb.from('submissions').select('student_id,homework_id,released'),sb.from('assignments').select('student_id,homework_id'),sb.from('drafts').select('student_id,homework_id')]);
