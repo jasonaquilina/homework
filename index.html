@@ -106,7 +106,7 @@ function picCard(){
   const note=el('input',{type:'text',maxlength:'200',placeholder:'What is it? For example: my drawing of the heart',style:'width:100%'});
   const file=el('input',{type:'file',accept:'image/*,application/pdf'});
   const st=el('div',{class:'small',style:'margin-top:8px'});const list=el('div',{style:'margin-top:12px'});
-  const loadList=()=>sb.rpc('my_pics',{p_code:CODE}).then(({data})=>{list.replaceChildren(...((data||[]).length?[el('div',{class:'small'},el('b',{},'What you have sent')),...data.slice(0,15).map(p=>el('div',{class:'small',style:'margin-top:6px;padding:6px 8px;border:1px solid var(--line);border-radius:8px'},new Date(p.at).toLocaleDateString()+': '+(p.kind||'')+(p.note?' - '+p.note:''),p.done?el('span',{class:'pill done',style:'margin-left:6px'},'Seen'):el('span',{class:'pill sub',style:'margin-left:6px'},'Sent'),p.reply?el('div',{class:'teach',style:'margin-top:4px'},el('b',{},'Reply: '),p.reply):''))]:[]))});
+  const loadList=()=>sb.rpc('my_pics',{p_code:CODE}).then(({data})=>{list.replaceChildren(...((data||[]).length?[el('div',{class:'small'},el('b',{},'What you have sent')),...data.slice(0,15).map(p=>el('div',{class:'small',style:'margin-top:6px;padding:6px 8px;border:1px solid var(--line);border-radius:8px'},new Date(p.at).toLocaleDateString()+': '+(p.kind||'')+(p.note?' - '+p.note:''),p.done?el('span',{class:'pill done',style:'margin-left:6px'},'Seen'):el('span',{class:'pill sub',style:'margin-left:6px'},'Sent'),(p.reply||p.reply_file)?el('div',{class:'teach',style:'margin-top:4px'},p.reply?[el('b',{},'Reply: '),p.reply]:[],p.reply_file?el('div',{style:'margin-top:6px'},fbShow(p.reply_file,'max-width:100%')):[]):''))]:[]))});
   const go=async()=>{const f=file.files[0];const n=note.value.trim();if(!n){st.className='err';st.textContent='Please write what the picture or file is.';return}if(!f){st.className='err';st.textContent='Please choose a photo or a PDF file.';return}
     const pdf=f.type==='application/pdf'||/\.pdf$/i.test(f.name);if(pdf&&f.size>5000000){st.className='err';st.textContent='That PDF is too large (limit 5 MB).';return}
     st.className='small';st.textContent='Sending...';btn.disabled=true;
@@ -130,13 +130,16 @@ async function tPics(out){
     const {data:u}=await sb.storage.from('drawings').createSignedUrl(p.path,3600);const url=u&&u.signedUrl;const pdf=/\.pdf$/i.test(p.path);
     const ta=el('textarea',{rows:'2',style:'width:100%',placeholder:'Reply to the student (optional)'});ta.value=p.reply||'';
     const msg=el('span',{class:'small',style:'margin-left:8px'});
+    let rf=p.reply_file||null;const rfPrev=el('div',{style:'margin-top:6px'});const drawRf=()=>rfPrev.replaceChildren(...(rf?[fbShow(rf,'max-width:240px'),el('div',{},el('button',{class:'btn ghost sm',onclick:()=>{rf=null;drawRf()}},'Remove file'))]:[]));drawRf();
+    const rfIn=el('input',{type:'file',accept:'image/*,application/pdf',onchange:async e=>{const f=e.target.files[0];if(!f)return;try{rf=await readFb(f);drawRf()}catch(x){msg.textContent=x&&x.message==='big'?'That PDF is too large (limit 1.5 MB).':'That file could not be read.'}e.target.value=''}});
+    const rfBox=el('div',{style:'margin-top:6px'},el('div',{class:'small'},'Attach an image or PDF to your reply (optional, PDF up to 1.5 MB). Press Save reply to send it.'),rfIn,rfPrev);
     const done=el('input',{type:'checkbox',onchange:async()=>{const {error:e}=await sb.from('student_pics').update({done:done.checked}).eq('id',p.id);msg.textContent=e?'Could not save':'Saved'}});done.checked=!!p.done;
     card.append(el('div',{class:'item',style:p.done?'opacity:.65':''},
       el('div',{class:'lab'},(nm[p.student_id]||'Student')+'  ',el('span',{class:'small'},new Date(p.created_at).toLocaleString()+'  |  '+(p.kind||''))),
       p.note?el('div',{style:'margin:4px 0'},p.note):'',
       url?(pdf?el('a',{href:url,target:'_blank',rel:'noopener',style:'font-weight:600'},'Open PDF'):el('img',{class:'photo',src:url,style:'display:block;background:#fff'})):el('div',{class:'err'},'File not available'),
-      el('div',{style:'margin-top:8px'},ta),
-      el('div',{style:'margin-top:6px'},el('button',{class:'btn ghost sm',onclick:async()=>{const {error:e}=await sb.from('student_pics').update({reply:ta.value.trim()||null}).eq('id',p.id);msg.textContent=e?'Could not save':'Reply saved'}},'Save reply'),el('label',{style:'margin-left:12px;font-size:13px'},done,' Done'),msg)))}
+      el('div',{style:'margin-top:8px'},ta),rfBox,
+      el('div',{style:'margin-top:6px'},el('button',{class:'btn ghost sm',onclick:async()=>{const {error:e}=await sb.from('student_pics').update({reply:ta.value.trim()||null,reply_file:rf}).eq('id',p.id);msg.textContent=e?'Could not save':'Reply saved'}},'Save reply'),el('label',{style:'margin-left:12px;font-size:13px'},done,' Done'),msg)))}
 }
 function studentLogin(msg){
   const inp=el('input',{type:'text',autocomplete:'off',autocapitalize:'off',placeholder:'Your personal code',style:'width:100%;max-width:300px'});
