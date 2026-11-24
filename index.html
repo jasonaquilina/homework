@@ -63,11 +63,11 @@ function studentHome(){
   if(!CODE){return studentLogin()}
   sb.rpc('student_login',{p_code:CODE}).then(({data,error})=>{
     if(error||!data){store('code',null);CODE=null;return studentLogin(error?'Something went wrong. Please try again.':'That code was not recognised.')}
-    ME=data;$hdr.append(el('span',{class:'small',style:'color:#fff'},ME.name+'  '),el('button',{class:'lnk',onclick:()=>{store('code',null);studentHome()}},'Sign out'));
+    ME=data;ME.homework.forEach(h=>{if(h.status==='draft'){h.draft=true;h.status='todo'}});$hdr.append(el('span',{class:'small',style:'color:#fff'},ME.name+'  '),el('button',{class:'lnk',onclick:()=>{store('code',null);studentHome()}},'Sign out'));
     const rows=ME.homework.length?ME.homework.map(h=>el('div',{class:'hwrow'},
       el('div',{},el('b',{},'Homework '+h.id.replace('HW','')+': '+h.title),el('div',{class:'meta'},'Year '+h.year)),
-      el('div',{},el('span',{class:'pill '+(h.status==='todo'?'todo':h.status==='submitted'?'sub':'done')},h.status==='todo'?'To do':h.status==='submitted'?'Submitted, awaiting marking':'Marked'),' ',
-        el('button',{class:'btn sm '+(h.status==='todo'?'':'ghost'),onclick:()=>openHw(h)},h.status==='todo'?'Start':h.status==='submitted'?'View':'See marks')))):[el('p',{class:'meta'},'No homework is open right now.')];
+      el('div',{},el('span',{class:'pill '+(h.status==='todo'?'todo':h.status==='submitted'?'sub':'done')},h.status==='todo'?(h.draft?'In progress (saved)':'To do'):h.status==='submitted'?'Submitted, awaiting marking':'Marked'),' ',
+        el('button',{class:'btn sm '+(h.status==='todo'?'':'ghost'),onclick:()=>openHw(h)},h.status==='todo'?(h.draft?'Continue':'Start'):h.status==='submitted'?'View':'See marks')))):[el('p',{class:'meta'},'No homework is open right now.')];
     show(el('h1',{},'Hello, '+ME.name),el('p',{class:'meta'},'You have one attempt at each homework. Marks and correct answers appear after your teacher has marked it.'),el('div',{class:'card'},rows));
   });
 }
@@ -89,32 +89,44 @@ function openHw(h){
 }
 function clozeParts(sec,mk){return sec.para.split(/\{(\w+)\}/).map((t,i)=>i%2?mk(t):t)}
 function renderForm(hw){
-  const ans={},photos={},files=[];
-  const body=[el('h1',{},'Homework '+hw.id.replace('HW','')+': '+hw.title),el('p',{class:'meta'},'One attempt only. '+maxMarks(hw.spec)+' marks in total. The yellow areas show where you need to answer.')];
+  const ans=JSON.parse(JSON.stringify(hw.draft||{}));
+  const body=[el('h1',{},'Homework '+hw.id.replace('HW','')+': '+hw.title),el('p',{class:'meta'},'One attempt only. '+maxMarks(hw.spec)+' marks in total. The yellow areas show where you need to answer. You can press "Save and finish later" and come back to carry on. Your answers also save automatically as you work.')];
+  const stat=el('div',{class:'small',style:'margin-top:10px'},hw.draft?'Your saved answers have been restored.':'');
+  let dirty=false,timer=null,busy=false;
+  const save=async manual=>{if(busy)return false;if(!dirty&&!manual)return true;busy=true;stat.className='small';stat.textContent='Saving...';
+    const {error}=await sb.rpc('save_draft',{p_code:CODE,p_hw:hw.id,p_answers:ans});busy=false;
+    if(error){stat.className='err';stat.textContent='Could not save. Please check your connection and try again.';return false}
+    dirty=false;stat.className='small';stat.textContent='Draft saved at '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});return true};
+  const touch=()=>{dirty=true;clearTimeout(timer);timer=setTimeout(()=>save(false),8000)};
+  const mkSelect=it=>{const s=el('select',{onchange:e=>{ans[it.id]=e.target.value;touch()}},el('option',{value:''},'Choose...'),it.options.map(o=>el('option',{value:o},o)));s.value=ans[it.id]||'';return s};
   hw.spec.sections.forEach(sec=>{
     const c=el('div',{class:'card ask'},el('div',{class:'qhead'},el('span',{class:'qlabel'},sec.title),sec.marks&&el('span',{class:'marks'},sec.marks)),sec.help&&el('p',{class:'src'},sec.help));
     if(sec.para){const its={};sec.items.forEach(i=>its[i.id]=i);const bank=sec.items[0].options;
-      c.append(el('p',{class:'small'},'Word bank: '+bank.join(', ')+'. Each correct answer is worth '+(sec.items[0].marks===0.5?'½ mark':sec.items[0].marks===1?'1 mark':sec.items[0].marks+' marks')+'.'),el('p',{class:'cloze'},clozeParts(sec,id=>el('select',{onchange:e=>ans[id]=e.target.value},el('option',{value:''},'Choose...'),its[id].options.map(o=>el('option',{value:o},o))))));body.push(c);return}
+      c.append(el('p',{class:'small'},'Word bank: '+bank.join(', ')+'. Each correct answer is worth '+(sec.items[0].marks===0.5?'½ mark':sec.items[0].marks===1?'1 mark':sec.items[0].marks+' marks')+'.'),el('p',{class:'cloze'},clozeParts(sec,id=>mkSelect(its[id]))));body.push(c);return}
     sec.items.forEach(it=>{
       const box=el('div',{class:'item'},el('div',{class:'lab'},it.label,it.marks?el('span',{class:'marks'},'  ['+it.marks+(it.marks===1?' mark':' marks')+']'):null));
-      if(it.type==='multi'){ans[it.id]=[];box.append(el('div',{class:'opts'},it.options.map(o=>el('label',{},el('input',{type:'checkbox',onchange:e=>{const a=ans[it.id];e.target.checked?a.push(o):a.splice(a.indexOf(o),1)}}),o))))}
-      else if(it.type==='select'){const s=el('select',{onchange:e=>ans[it.id]=e.target.value},el('option',{value:''},'Choose...'),it.options.map(o=>el('option',{value:o},o)));box.append(s)}
-      else if(it.type==='text'){box.append(el('textarea',{oninput:e=>ans[it.id]=e.target.value}))}
-      else if(it.type==='upload'){const prev=el('div',{});const inp=el('input',{type:'file',accept:'image/*',onchange:async e=>{const f=e.target.files[0];if(!f)return;prev.replaceChildren(el('span',{class:'small'},'Preparing photo...'));try{const b=await shrink(f);photos[it.id]=b;prev.replaceChildren(el('img',{class:'photo',src:URL.createObjectURL(b)}))}catch(x){prev.replaceChildren(el('div',{class:'err'},'That file could not be read as a photo.'))}}});box.append(el('p',{class:'small'},'Take a clear photo of your drawing and add it here.'),inp,prev)}
+      if(it.type==='multi'){ans[it.id]=ans[it.id]||[];box.append(el('div',{class:'opts'},it.options.map(o=>{const cb=el('input',{type:'checkbox',onchange:e=>{const a=ans[it.id];e.target.checked?a.push(o):a.splice(a.indexOf(o),1);touch()}});cb.checked=ans[it.id].includes(o);return el('label',{},cb,o)})))}
+      else if(it.type==='select'){box.append(mkSelect(it))}
+      else if(it.type==='text'){const t=el('textarea',{oninput:e=>{ans[it.id]=e.target.value;touch()}});t.value=ans[it.id]||'';box.append(t)}
+      else if(it.type==='upload'){const prev=el('div',{});if(ans[it.id])prev.append(el('div',{class:'ok-msg'},'Your photo is saved. Choose another photo only if you want to replace it.'));
+        const inp=el('input',{type:'file',accept:'image/*',onchange:async e=>{const f=e.target.files[0];if(!f)return;prev.replaceChildren(el('span',{class:'small'},'Uploading photo...'));
+          try{const bl=await shrink(f);const p='hw/'+hw.id+'/'+crypto.randomUUID()+'.jpg';const {error}=await sb.storage.from('drawings').upload(p,bl,{contentType:'image/jpeg'});if(error)throw error;ans[it.id]=[p];prev.replaceChildren(el('img',{class:'photo',src:URL.createObjectURL(bl)}),el('div',{class:'small'},'Photo uploaded and saved.'));dirty=true;save(true)}
+          catch(x){prev.replaceChildren(el('div',{class:'err'},'The photo could not be uploaded. Please try again.'))}}});
+        box.append(el('p',{class:'small'},'Take a clear photo of your drawing and add it here.'),inp,prev)}
       c.append(box)});
     body.push(c)});
   const msg=el('div');
   const btn=el('button',{class:'btn',onclick:()=>confirmSubmit()},'Submit homework');
-  body.push(el('div',{class:'bar'},el('button',{class:'btn ghost',onclick:studentHome},'Back'),btn),msg);
+  const sv=el('button',{class:'btn ghost',onclick:async()=>{clearTimeout(timer);const ok=await save(true);if(ok)show(el('h1',{},'Draft saved'),el('div',{class:'ok-msg'},'Your answers are saved. You can come back at any time and carry on from where you stopped. It has NOT been submitted yet.'),el('div',{class:'bar'},el('button',{class:'btn',onclick:studentHome},'Back to my homework')))}},'Save and finish later');
+  body.push(el('div',{class:'bar'},el('button',{class:'btn ghost',onclick:async()=>{clearTimeout(timer);if(dirty)await save(false);studentHome()}},'Back'),el('div',{},sv,' ',btn)),stat,msg);
   show(body);
   function confirmSubmit(){
     const m=el('div',{class:'modal'},el('div',{class:'box'},el('h2',{},'Submit now?'),el('p',{},'You only get one attempt. After you submit, you cannot change your answers.'),
       el('div',{class:'bar'},el('button',{class:'btn ghost',onclick:()=>m.remove()},'Go back'),el('button',{class:'btn',onclick:async()=>{m.remove();await doSubmit()}},'Yes, submit'))));
     document.body.append(m)}
   async function doSubmit(){
-    btn.disabled=true;msg.replaceChildren(el('p',{class:'small'},'Submitting...'));
-    try{const paths=[];
-      for(const id in photos){const p='hw/'+hw.id+'/'+crypto.randomUUID()+'.jpg';const {error}=await sb.storage.from('drawings').upload(p,photos[id],{contentType:'image/jpeg'});if(error)throw error;ans[id]=[p];paths.push(p)}
+    clearTimeout(timer);btn.disabled=true;msg.replaceChildren(el('p',{class:'small'},'Submitting...'));
+    try{const paths=[];hw.spec.sections.forEach(s=>s.items.forEach(i=>{if(i.type==='upload'&&ans[i.id])paths.push(...[].concat(ans[i.id]))}));
       const {error}=await sb.rpc('submit_homework',{p_code:CODE,p_hw:hw.id,p_answers:ans,p_photos:paths});
       if(error)throw error;
       show(el('h1',{},'Submitted'),el('div',{class:'ok-msg'},'Your homework has been sent. Your marks will appear here after your teacher has marked it.'),el('div',{class:'bar'},el('button',{class:'btn',onclick:studentHome},'Back to my homework')));
@@ -162,12 +174,12 @@ function renderTeacher(){
   ({overview:tOverview,students:tStudents,allocate:tAllocate,marking:tMarking})[tab](out);
 }
 async function tOverview(out){
-  const [{data:st},{data:hw},{data:sub},{data:asg}]=await Promise.all([sb.from('students').select('*').order('name'),sb.from('homework').select('id,title').order('id'),sb.from('submissions').select('student_id,homework_id,released'),sb.from('assignments').select('student_id,homework_id')]);
+  const [{data:st},{data:hw},{data:sub},{data:asg},{data:drf}]=await Promise.all([sb.from('students').select('*').order('name'),sb.from('homework').select('id,title').order('id'),sb.from('submissions').select('student_id,homework_id,released'),sb.from('assignments').select('student_id,homework_id'),sb.from('drafts').select('student_id,homework_id')]);
   if(!st.length)return out.append(el('div',{class:'card'},'No students yet. Add them on the Students tab.'));
   const get=(s,h)=>sub.find(x=>x.student_id===s&&x.homework_id===h);
   out.append(el('div',{class:'card tw'},el('table',{},el('tr',{},el('th',{},'Student'),hw.map(h=>el('th',{title:h.title},h.id))),
-    st.map(s=>el('tr',{},el('td',{},s.name),hw.map(h=>{const x=get(s.id,h.id);return el('td',{},x?(x.released?'✓ marked':'✓ in'):(asg.some(a=>a.student_id===s.id&&a.homework_id===h.id)?'to do':'–'))}))))),
-    el('p',{class:'small'},'✓ in = submitted, waiting for you. ✓ marked = marks released. to do = given to the student, not yet submitted. – = not given.'));
+    st.map(s=>el('tr',{},el('td',{},s.name),hw.map(h=>{const x=get(s.id,h.id);return el('td',{},x?(x.released?'✓ marked':'✓ in'):(asg.some(a=>a.student_id===s.id&&a.homework_id===h.id)?(drf.some(a=>a.student_id===s.id&&a.homework_id===h.id)?'started':'to do'):'–'))}))))),
+    el('p',{class:'small'},'✓ in = submitted, waiting for you. ✓ marked = marks released. to do = given, not started. started = saved a draft, not yet submitted. – = not given.'));
 }
 async function tStudents(out){
   const [{data:st},{data:gr}]=await Promise.all([sb.from('students').select('*').order('name'),sb.from('groups').select('name').order('name')]);
