@@ -13,7 +13,7 @@ main{padding:24px 0 56px}h1{font-size:25px;line-height:1.2;margin:0 0 4px}h2{fon
 .meta{color:var(--muted);font-size:13.5px}.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;margin-top:16px}
 .qlabel{font-weight:600;font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--accent)}.marks{font-size:12.5px;color:var(--muted)}
 .qhead{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px}.src{font-size:13px;color:var(--muted);margin:0 0 10px}
-.item{margin:14px 0 4px}.item .lab{font-weight:500;margin-bottom:6px}
+.item{margin:14px 0 4px}.item.mk{border-top:3px solid var(--line);margin-top:26px;padding-top:16px}.item .lab{font-weight:500;margin-bottom:6px}
 .opts{display:flex;gap:8px;flex-wrap:wrap}.opts label{display:flex;gap:7px;align-items:center;border:1px solid var(--line);background:var(--field);border-radius:8px;padding:7px 12px;cursor:pointer;font-size:14px}
 .opts label.ok{background:var(--good-bg);border-color:var(--good)}.opts label.no{background:var(--bad-bg);border-color:var(--bad)}.opts label.miss{border:2px dashed var(--good)}
 input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
@@ -314,7 +314,7 @@ const tg=el('button',{class:'btn ghost sm',style:'margin-top:10px',onclick:()=>{
 c.append(tg,all);
 
   h.spec.sections.forEach(sec=>sec.items.forEach(it=>{
-    if(it.type==='text'||it.type==='upload'){const row=el('div',{class:'item'},el('div',{class:'lab'},it.label));
+    if(it.type==='text'||it.type==='upload'){const row=el('div',{class:'item mk'},el('div',{class:'lab'},it.label));
       if(it.type==='text')row.append(el('div',{class:'small',style:'margin-bottom:4px'},"Student's answer:"),el('div',{class:'stu'},s.answers[it.id]||'(no answer)'));
       else{const pl=[].concat(s.answers[it.id]||[]);if(pl.length){const box=el('div',{class:'stu'});pl.forEach(p=>{const im=el('img',{class:'photo',alt:'drawing',style:'display:block;margin-bottom:8px'});sb.storage.from('drawings').createSignedUrl(p,3600).then(({data})=>{if(data)im.src=data.signedUrl});box.append(im)});row.append(el('div',{class:'small',style:'margin-bottom:4px'},pl.length>1?"Student's photos ("+pl.length+"):":"Student's photo:"),box)}else row.append(el('div',{class:'small'},'(no photo)'));const nt=s.answers[it.id+'_note'];if(nt)row.append(el('div',{class:'small',style:'margin:8px 0 4px'},"Student's notes:"),el('div',{class:'stu'},nt))}
       row.append(guideBox(h.id,it.id,t=>{const ta=row.querySelector('textarea');const NL=String.fromCharCode(10);ta.value=(ta.value.trim()?ta.value.trim()+NL+NL:'')+'Model answer: '+t;ta.dispatchEvent(new Event('input'));ta.focus()}),el('div',{style:'margin-top:8px'},'Mark: ',el('input',{type:'number',min:0,max:it.marks,step:0.5,style:'width:80px',value:manual[it.id]??'',oninput:e=>{e.target.value===''?delete manual[it.id]:(manual[it.id]=+e.target.value);upd()}}),' / '+it.marks));const ta=el('textarea',{placeholder:'Comment for the student (optional)',style:'min-height:60px;margin-top:8px',oninput:e=>{const v=e.target.value;v.trim()?fb[it.id]=v:delete fb[it.id]}});ta.value=fb[it.id]||'';row.append(ta,commentTools(ta,v=>{v.trim()?fb[it.id]=v:delete fb[it.id]}),imgTool(fimg,it.id));c.append(row)}}));
