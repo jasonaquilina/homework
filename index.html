@@ -223,7 +223,7 @@ async function tAllocate(out){
   out.append(el('div',{class:'card'},el('h2',{},'Choose a homework'),sel,el('p',{class:'small'},'Tick the students who should see it. Students only ever see homework you have given them. Once a student has submitted, it stays on their list.'),msg),body);draw();
 }
 let SNIPS=[],PICKERS=[];
-function fillPicker(p){p.replaceChildren(el('option',{value:''},'Insert a saved comment...'),SNIPS.map(x=>el('option',{value:String(x.id)},x.text.length>70?x.text.slice(0,70)+'...':x.text)));p.value=''}
+function fillPicker(p){p.replaceChildren(el('option',{value:''},'Insert a saved comment...'),...SNIPS.map(x=>el('option',{value:String(x.id)},x.text.length>70?x.text.slice(0,70)+'...':x.text)));p.value=''}
 function refreshPickers(){PICKERS.forEach(fillPicker)}
 let SNIPDRAW=null;
 async function saveSnippet(t){t=(t||'').trim();if(!t)return 'empty';if(SNIPS.some(s=>s.text===t))return 'dup';const {data,error}=await sb.from('comment_snippets').insert({text:t}).select().single();if(error)return 'error';SNIPS.push(data);SNIPS.sort((a,b)=>a.text.localeCompare(b.text));refreshPickers();if(SNIPDRAW)SNIPDRAW();return 'saved'}
