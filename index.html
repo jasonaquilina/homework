@@ -265,8 +265,8 @@ async function tOverview(out){
   const [{data:st},{data:hw},{data:sub},{data:asg},{data:drf}]=await Promise.all([sb.from('students').select('*').eq('archived',false).order('name'),sb.from('homework').select('id,title').order('id'),sb.from('submissions').select('student_id,homework_id,released'),sb.from('assignments').select('student_id,homework_id'),sb.from('drafts').select('student_id,homework_id')]);
   if(!st.length)return out.append(el('div',{class:'card'},'No students yet. Add them on the Students tab.'));
   const get=(s,h)=>sub.find(x=>x.student_id===s&&x.homework_id===h);
-  out.append(el('div',{class:'card tw'},el('table',{},el('tr',{},el('th',{},'Student'),hw.map(h=>el('th',{title:h.title},h.id))),
-    st.map(s=>el('tr',{},el('td',{},s.name),hw.map(h=>{const x=get(s.id,h.id);return el('td',{},x?(x.released?'✓ marked':'✓ in'):(asg.some(a=>a.student_id===s.id&&a.homework_id===h.id)?(drf.some(a=>a.student_id===s.id&&a.homework_id===h.id)?'started':'to do'):'–'))}))))),
+  out.append(el('div',{class:'card tw'},el('table',{},el('tr',{},el('th',{},'Homework'),st.map(s=>el('th',{},s.name))),
+    hw.map(h=>el('tr',{},el('td',{title:h.title},h.id),st.map(s=>{const x=get(s.id,h.id);return el('td',{},x?(x.released?'✓ marked':'✓ in'):(asg.some(a=>a.student_id===s.id&&a.homework_id===h.id)?(drf.some(a=>a.student_id===s.id&&a.homework_id===h.id)?'started':'to do'):'–'))}))))),
     el('p',{class:'small'},'✓ in = submitted, waiting for you. ✓ marked = marks released. to do = given, not started. started = saved a draft, not yet submitted. – = not given.'));
 }
 async function tStudents(out){
