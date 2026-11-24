@@ -83,6 +83,7 @@ const FAQ=[
 ["It says it could not submit.","Check your internet connection and press Submit again. Do not close the page until you see the Submitted message. If it keeps failing, press Save and finish later, check your connection, then come back and try again."],
 ["Something else is not working.","Contact Jason Aquilina at jasonaquilina@gmail.com. Tell him your name, which homework it is, and what you saw on the screen."]
 ];
+const figs=sec=>(sec.figs||[]).map(f=>el('figure',{style:'margin:10px 0'},el('img',{class:'photo',src:f.src,alt:f.caption||'Figure',style:'background:#fff'}),f.caption?el('figcaption',{class:'small'},f.caption):null));
 function helpPanel(){return el('details',{class:'card faq noprint'},el('summary',{style:'cursor:pointer;font-weight:600'},'Help and common questions'),FAQ.map(x=>el('details',{},el('summary',{},x[0]),el('p',{class:'small'},x[1]))))}
 let CODE=null,ME=null;
 function studentHome(){
@@ -128,7 +129,7 @@ function renderForm(hw){
   const touch=()=>{dirty=true;clearTimeout(timer);timer=setTimeout(()=>save(false),8000)};
   const mkSelect=it=>{const s=el('select',{onchange:e=>{ans[it.id]=e.target.value;touch()}},el('option',{value:''},'Choose...'),it.options.map(o=>el('option',{value:o},o)));s.value=ans[it.id]||'';return s};
   hw.spec.sections.forEach(sec=>{
-    const c=el('div',{class:'card ask'},el('div',{class:'qhead'},el('span',{class:'qlabel'},sec.title),sec.marks&&el('span',{class:'marks'},sec.marks)),sec.help&&el('p',{class:'src'},sec.help));
+    const c=el('div',{class:'card ask'},el('div',{class:'qhead'},el('span',{class:'qlabel'},sec.title),sec.marks&&el('span',{class:'marks'},sec.marks)),sec.help&&el('p',{class:'src'},sec.help),...figs(sec));
     if(sec.para){const its={};sec.items.forEach(i=>its[i.id]=i);const bank=sec.items[0].options;
       c.append(el('p',{class:'small'},'Word bank: '+bank.join(', ')+'. Each correct answer is worth '+(sec.items[0].marks===0.5?'½ mark':sec.items[0].marks===1?'1 mark':sec.items[0].marks+' marks')+'.'),el('p',{class:'cloze'},clozeParts(sec,id=>mkSelect(its[id]))));body.push(c);return}
     sec.items.forEach(it=>{
@@ -174,7 +175,7 @@ function showResult(h){
     if(!r||!r.released)return show(el('div',{class:'card'},'Not marked yet.'),el('button',{class:'btn ghost',onclick:studentHome},'Back'));
     const total=sumObj(r.auto_marks)+sumObj(r.manual_marks);
     const body=[el('h1',{},h.title),el('p',{class:'meta'},(ME&&ME.name?ME.name+'  |  ':'')+new Date().toLocaleDateString()),el('div',{class:'noprint'},el('button',{class:'btn ghost sm',onclick:()=>window.print()},'Save as PDF / Print')),el('div',{class:'notice'},'If you disagree with any corrected answer, or you would like to understand why an answer was marked wrong, please contact Jason Aquilina at jasonaquilina@gmail.com.'),el('div',{class:'card'},el('h2',{},'Your mark: ',el('span',{class:'tmark'},fmt(total)+' / '+maxMarks(r.spec))),(r.feedback&&r.feedback._overall)?el('div',{class:'teach',style:'margin-top:10px'},el('b',{},'Teacher comment: '),r.feedback._overall):null)];
-    r.spec.sections.forEach(sec=>{const c=el('div',{class:'card'},el('span',{class:'qlabel'},sec.title),sec.help&&el('p',{class:'src'},sec.help));
+    r.spec.sections.forEach(sec=>{const c=el('div',{class:'card'},el('span',{class:'qlabel'},sec.title),sec.help&&el('p',{class:'src'},sec.help),...figs(sec));
       if(sec.para){const ok=sec.items.filter(i=>(+r.auto_marks[i.id]||0)>=(i.marks||0)).length;c.append(el('p',{class:'cloze'},clozeParts(sec,id=>{const a=r.answers[id],k=r.key[id],m=+r.auto_marks[id]||0,i=sec.items.find(x=>x.id===id);return m>=(i.marks||0)?el('span',{class:'czr ok'},a):el('span',{class:'czr no'},el('s',{},a||'(blank)'),' → ',[].concat(k.answer).concat(k.alts||[]).join(' / '))})),el('p',{class:'small'},'Blanks correct: '+ok+' of '+sec.items.length));body.push(c);return}
       sec.items.forEach(it=>{const k=r.key[it.id],a=r.answers[it.id],m=(it.id in r.auto_marks)?r.auto_marks[it.id]:r.manual_marks[it.id];
         const row=el('div',{class:'item'},el('div',{class:'lab'},it.label,el('span',{class:(it.id in r.auto_marks)?'marks':'tmark',style:'margin-left:8px'},fmt(+m||0)+' / '+(it.marks||0))));
