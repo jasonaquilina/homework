@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#1f7a4d"><link rel="icon" href="icon.svg">
 <title>Biology Homework Portal</title>
 <style>
 :root{--bg:#f3f6f7;--surface:#fff;--fg:#17323f;--muted:#5b7380;--line:#d9e3e7;--accent:#2f7f8f;--accent-fg:#fff;--navy:#1b3a4b;--good:#2e7d4f;--good-bg:#e4f3ea;--bad:#b4432f;--bad-bg:#fbe9e5;--warn:#8a6414;--warn-bg:#f8efd6;--field:#f3f8f9;--font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
@@ -418,5 +418,6 @@ c.append(el('div',{class:'item overall'},el('div',{class:'lab'},'Total mark: ',t
   c.append(el('div',{class:'bar'},el('div',{},'Total: ',el('b',{},tot),' ',s.released?el('span',{class:'pill done'},'released'):null,' ',msg),el('div',{},el('button',{class:'btn ghost sm',onclick:()=>save()},'Save marks'),' ',el('button',{class:'btn sm',onclick:()=>save(!s.released)},s.released?'Hide marks':'Save & release'))));
   upd();return c;
 }
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 route();
 </script></body></html>
