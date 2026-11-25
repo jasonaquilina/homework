@@ -238,7 +238,7 @@ async function teacherHome(){
   $hdr.replaceChildren();
   const {data:{session}}=await sb.auth.getSession();
   if(!session)return teacherLogin();
-  $hdr.append(el('button',{class:'lnk',onclick:async()=>{await sb.auth.signOut();teacherHome()}},'Sign out'));
+  $hdr.append(el('button',{class:'lnk',title:'Turn on notifications',onclick:enablePush},'\u{1F514}'),' ',el('button',{class:'lnk',onclick:async()=>{await sb.auth.signOut();teacherHome()}},'Sign out'));
   $app.classList.add('wide');
   tab='overview';renderTeacher();
 }
@@ -417,6 +417,21 @@ c.append(el('div',{class:'item overall'},el('div',{class:'lab'},'Total mark: ',t
   const save=async rel=>{if(rel===true){const u=unmarked(h,manual);if(u.length&&!confirm('These questions have no mark entered:'+String.fromCharCode(10)+String.fromCharCode(10)+u.join(String.fromCharCode(10))+String.fromCharCode(10)+String.fromCharCode(10)+'They will count as 0. Release the marks anyway?'))return}msg.textContent='Saving...';const sim=(rel===true||s.released)?await ensureStudentImgs(h,s):(s.student_imgs||{});s.student_imgs=sim;const {error}=await sb.from('submissions').update({manual_marks:manual,feedback:fb,feedback_imgs:fimg,student_imgs:sim,released:rel??s.released}).eq('id',s.id);error?msg.textContent='Could not save':(msg.textContent='Saved',rel!==undefined&&reload())};
   c.append(el('div',{class:'bar'},el('div',{},'Total: ',el('b',{},tot),' ',s.released?el('span',{class:'pill done'},'released'):null,' ',msg),el('div',{},el('button',{class:'btn ghost sm',onclick:()=>save()},'Save marks'),' ',el('button',{class:'btn sm',onclick:()=>save(!s.released)},s.released?'Hide marks':'Save & release'))));
   upd();return c;
+}
+const VAPID_PUB='BBpa7btWXnFzfNaD8YIXe9Xa1ww46WmVyBlb-j74ebiPKI0XJPcSyhNzY26p9YxzbvYvFOzW0AAXhToLg6XcO20';
+async function enablePush(){
+  try{
+    if(!('serviceWorker' in navigator)||!('PushManager' in window))return alert('This browser does not support notifications.');
+    const reg=await navigator.serviceWorker.ready;
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted')return alert('Notifications are blocked. Allow them in the browser or app settings, then try again.');
+    const raw=atob((VAPID_PUB+'==='.slice((VAPID_PUB.length+3)%4)).replace(/-/g,'+').replace(/_/g,'/'));
+    const key=Uint8Array.from(raw,c=>c.charCodeAt(0));
+    const sub=(await reg.pushManager.getSubscription())||(await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:key}));
+    const j=sub.toJSON();
+    const {error}=await sb.from('push_subs').upsert({endpoint:j.endpoint,p256dh:j.keys.p256dh,auth:j.keys.auth});
+    alert(error?'Could not save: '+error.message:'Notifications are on for this device.');
+  }catch(e){alert('Could not turn on notifications: '+e.message)}
 }
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 route();
