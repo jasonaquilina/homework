@@ -114,7 +114,8 @@ function picCard(){
   const note=el('input',{type:'text',maxlength:'200',placeholder:'What is it? For example: my drawing of the heart',style:'width:100%'});
   const file=el('input',{type:'file',accept:'image/*,application/pdf'});
   const st=el('div',{class:'small',style:'margin-top:8px'});const list=el('div',{style:'margin-top:12px'});
-  const loadList=()=>sb.rpc('my_pics',{p_code:CODE}).then(({data})=>{list.replaceChildren(...((data||[]).length?[el('div',{class:'small'},el('b',{},'What you have sent')),...data.slice(0,15).map(p=>el('div',{class:'small',style:'margin-top:6px;padding:6px 8px;border:1px solid var(--line);border-radius:8px'},new Date(p.at).toLocaleDateString()+': '+(p.kind||'')+(p.note?' - '+p.note:''),p.done?el('span',{class:'pill done',style:'margin-left:6px'},'Seen'):el('span',{class:'pill sub',style:'margin-left:6px'},'Sent'),(p.reply||p.reply_file)?el('div',{class:'teach',style:'margin-top:4px'},p.reply?[el('b',{},'Reply: '),p.reply]:[],p.reply_file?el('div',{style:'margin-top:6px'},fbShow(p.reply_file,'max-width:100%')):[]):''))]:[]))});
+  const picRow=p=>{const has=!!(p.reply||p.reply_file);const det=el('div',{class:'teach',style:'margin-top:6px;display:none'},p.reply?[el('b',{},'Reply: '),p.reply]:[],p.reply_file?el('div',{style:'margin-top:6px'},fbShow(p.reply_file,'max-width:100%')):[]);const b=has?el('button',{class:'btn ghost sm',style:'margin-left:6px',onclick:()=>{const o=det.style.display==='none';det.style.display=o?'block':'none';b.textContent=o?'Hide feedback':'See feedback'}},'See feedback'):null;return el('div',{class:'small',style:'margin-top:6px;padding:6px 8px;border:1px solid var(--line);border-radius:8px'},new Date(p.at).toLocaleDateString()+': '+(p.kind||'')+(p.note?' - '+p.note:''),has?el('span',{class:'pill done',style:'margin-left:6px'},'Feedback ready'):p.done?el('span',{class:'pill done',style:'margin-left:6px'},'Seen'):el('span',{class:'pill sub',style:'margin-left:6px'},'Sent'),b,det)};
+  const loadList=()=>sb.rpc('my_pics',{p_code:CODE}).then(({data})=>{list.replaceChildren(...((data||[]).length?[el('div',{class:'small'},el('b',{},'What you have sent')),...data.slice(0,15).map(picRow)]:[]))});
   const go=async()=>{const f=file.files[0];const n=note.value.trim();if(!n){st.className='err';st.textContent='Please write what the picture or file is.';return}if(!f){st.className='err';st.textContent='Please choose a photo or a PDF file.';return}
     const pdf=f.type==='application/pdf'||/\.pdf$/i.test(f.name);if(pdf&&f.size>5000000){st.className='err';st.textContent='That PDF is too large (limit 5 MB).';return}
     st.className='small';st.textContent='Sending...';btn.disabled=true;
@@ -134,7 +135,7 @@ async function tPics(out){
   const nm={};(ss||[]).forEach(s=>nm[s.id]=s.name);
   if(!(ps||[]).length){out.append(el('div',{class:'card'},el('h2',{},'Files from students'),el('p',{class:'small'},'Nothing has been sent yet.')));return}
   const card=el('div',{class:'card'},el('h2',{},'Files from students'));out.append(card);
-  for(const p of ps){
+  for(const p of [...ps.filter(q=>!q.done),...ps.filter(q=>q.done)]){
     const {data:u}=await sb.storage.from('drawings').createSignedUrl(p.path,3600);const url=u&&u.signedUrl;const pdf=/\.pdf$/i.test(p.path);
     const ta=el('textarea',{rows:'2',style:'width:100%',placeholder:'Reply to the student (optional)'});ta.value=p.reply||'';
     const msg=el('span',{class:'small',style:'margin-left:8px'});
@@ -142,12 +143,13 @@ async function tPics(out){
     const rfIn=el('input',{type:'file',accept:'image/*,application/pdf',onchange:async e=>{const f=e.target.files[0];if(!f)return;try{rf=await readFb(f);drawRf()}catch(x){msg.textContent=x&&x.message==='big'?'That PDF is too large (limit 1.5 MB).':'That file could not be read.'}e.target.value=''}});
     const rfBox=el('div',{style:'margin-top:6px'},el('div',{class:'small'},'Attach an image or PDF to your reply (optional, PDF up to 1.5 MB). Press Save reply to send it.'),rfIn,rfPrev);
     const done=el('input',{type:'checkbox',onchange:async()=>{const {error:e}=await sb.from('student_pics').update({done:done.checked}).eq('id',p.id);msg.textContent=e?'Could not save':'Saved'}});done.checked=!!p.done;
-    card.append(el('div',{class:'item','data-pid':p.id,style:p.done?'opacity:.65':''},
+    const item=el('div',{class:'item','data-pid':p.id,style:p.done?'opacity:.65;display:none':''},
       el('div',{class:'lab'},(nm[p.student_id]||'Student')+'  ',el('span',{class:'small'},new Date(p.created_at).toLocaleString()+'  |  '+(p.kind||''))),
       p.note?el('div',{style:'margin:4px 0'},p.note):'',
       url?(pdf?el('a',{href:url,target:'_blank',rel:'noopener',style:'font-weight:600'},'Open PDF'):el('img',{class:'photo',src:url,style:'display:block;background:#fff'})):el('div',{class:'err'},'File not available'),
       el('div',{style:'margin-top:8px'},ta),rfBox,
-      el('div',{style:'margin-top:6px'},el('button',{class:'btn ghost sm',onclick:async()=>{const {error:e}=await sb.from('student_pics').update({reply:ta.value.trim()||null,reply_file:rf}).eq('id',p.id);msg.textContent=e?'Could not save':'Reply saved'}},'Save reply'),el('label',{style:'margin-left:12px;font-size:13px'},done,' Done'),msg)))}
+      el('div',{style:'margin-top:6px'},el('button',{class:'btn ghost sm',onclick:async()=>{const {error:e}=await sb.from('student_pics').update({reply:ta.value.trim()||null,reply_file:rf}).eq('id',p.id);msg.textContent=e?'Could not save':'Reply saved'}},'Save reply'),el('label',{style:'margin-left:12px;font-size:13px'},done,' Done'),msg));
+    if(p.done){const tg=el('button',{class:'btn ghost sm',onclick:()=>{const o=item.style.display==='none';item.style.display=o?'block':'none';tg.textContent=o?'Hide details':'Show details'}},'Show details');card.append(el('div',{style:SUM},el('span',{},(nm[p.student_id]||'Student')+' · '+new Date(p.created_at).toLocaleDateString()+' · '+(p.kind||'')+(p.note?' - '+p.note:'')+' · done'),tg),item)}else card.append(item)}
 }
 function studentLogin(msg){
   const inp=el('input',{type:'text',autocomplete:'off',autocapitalize:'off',placeholder:'Your personal code',style:'width:100%;max-width:300px'});
@@ -351,7 +353,7 @@ async function tAllocate(out){
   sel.addEventListener('change',draw);
   out.append(el('div',{class:'card'},el('h2',{},'Choose a homework'),sel,el('p',{class:'small'},'Tick the students who should see it. Students only ever see homework you have given them. Once a student has submitted, it stays on their list.'),msg),body);draw();
 }
-let SNIPS=[],PICKERS=[],FOCUS=null;
+let SNIPS=[],PICKERS=[],FOCUS=null;const SUM='display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;margin-top:6px;border:1px solid var(--line);border-radius:8px;font-size:13px;color:var(--muted)';
 function fillPicker(p){p.replaceChildren(el('option',{value:''},'Insert a saved comment...'),...SNIPS.map(x=>el('option',{value:String(x.id)},x.text.length>70?x.text.slice(0,70)+'...':x.text)));p.value=''}
 function refreshPickers(){PICKERS.forEach(fillPicker)}
 let SNIPDRAW=null;
@@ -377,7 +379,7 @@ async function tMarking(out){
     list.replaceChildren();PICKERS=[];if(!sub||!sub.length)return list.append(el('div',{class:'card'},'No submissions yet.'));
     const relAll=el('button',{class:'btn',onclick:async()=>{const NL=String.fromCharCode(10);const bad=sub.map(x=>{const u=unmarked(h,x.manual_marks);return u.length?((st.find(y=>y.id===x.student_id)||{}).name||'(removed)')+': '+u.length+' question(s) with no mark':null}).filter(Boolean);if(bad.length&&!confirm('Some students have questions with no mark saved:'+NL+NL+bad.join(NL)+NL+NL+'They will count as 0. Release marks for everyone anyway? (Marks typed but not yet saved are not included.)'))return;for(const x of sub){const sim=await ensureStudentImgs(h,x);await sb.from('submissions').update({released:true,student_imgs:sim}).eq('id',x.id)}load()}},'Release marks for all');
     list.append(el('div',{class:'bar'},el('span',{class:'meta'},sub.length+' submitted'),relAll));
-    sub.forEach(s=>{const mc=markCard(h,s,st.find(x=>x.id===s.student_id),load);mc.setAttribute('data-sid',s.student_id);list.append(mc)})};
+    [...sub.filter(s=>!s.released),...sub.filter(s=>s.released)].forEach(s=>{const stu=st.find(x=>x.id===s.student_id);const mc=markCard(h,s,stu,load);mc.setAttribute('data-sid',s.student_id);if(s.released){mc.style.display='none';const tg=el('button',{class:'btn ghost sm',onclick:()=>{const o=mc.style.display==='none';mc.style.display=o?'block':'none';tg.textContent=o?'Hide details':'Show details'}},'Show details');list.append(el('div',{style:SUM},el('span',{},((stu||{}).name||'(removed)')+' · marked and sent to student'),tg),mc)}else list.append(mc)})};
   sel.onchange=load;if(hw.length)load();
 }
 function unmarked(h,marks){const out=[];h.spec.sections.forEach(sec=>sec.items.forEach(it=>{if((it.type==='text'||it.type==='upload')&&(marks||{})[it.id]===undefined)out.push(sec.title.split(' (')[0]+': '+it.label.slice(0,45)+(it.label.length>45?'...':''))}));return out}
