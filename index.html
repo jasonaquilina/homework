@@ -277,7 +277,7 @@ function renderTeacher(){
   const t=el('div',{class:'tabs'},['overview','students','view','allocate','marking','pics','backup'].map(k=>el('button',{'aria-pressed':tab===k?'true':'false',onclick:()=>{tab=k;renderTeacher()}},{overview:'Overview',students:'Students',view:'View homework',allocate:'Allocate homework',marking:'Marking',pics:'Files',backup:'Backup'}[k])));
   const out=el('div',{});t.append(el('button',{class:'btn ghost sm',style:'margin-left:auto',onclick:renderTeacher},'↻ Refresh'),el('span',{class:'small',style:'align-self:center'},'Updated '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})));show(el('h1',{},'Lecturer'),t,out);
   ({overview:tOverview,students:tStudents,view:tView,allocate:tAllocate,marking:tMarking,pics:tPics,backup:tBackup})[tab](out);
-  if(FOCUS){const f=FOCUS;FOCUS=null;let n=0;const iv=setInterval(()=>{const q=f.pid?'[data-pid="'+f.pid+'"]':'[data-sid="'+f.sid+'"]';const node=document.querySelector(q);if(node){clearInterval(iv);node.scrollIntoView({block:'start'});node.style.outline='3px solid #f5b400';node.style.outlineOffset='2px';setTimeout(()=>{node.style.outline=''},4000)}else if(++n>25)clearInterval(iv)},200)}
+  if(FOCUS){const f=FOCUS;let n=0;const iv=setInterval(()=>{const q=f.pid?'[data-pid="'+f.pid+'"]':'[data-sid="'+f.sid+'"]';const node=document.querySelector(q);if(node){clearInterval(iv);FOCUS=null;node.scrollIntoView({block:'start'});node.style.outline='3px solid #f5b400';node.style.outlineOffset='2px';setTimeout(()=>{node.style.outline=''},4000)}else if(++n>25){clearInterval(iv);FOCUS=null}},200)}
 }
 async function tView(out){
   const {data:hw}=await sb.from('homework').select('id,title,year,spec').order('id');
