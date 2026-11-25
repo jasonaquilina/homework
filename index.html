@@ -142,7 +142,7 @@ async function tPics(out){
     const rfIn=el('input',{type:'file',accept:'image/*,application/pdf',onchange:async e=>{const f=e.target.files[0];if(!f)return;try{rf=await readFb(f);drawRf()}catch(x){msg.textContent=x&&x.message==='big'?'That PDF is too large (limit 1.5 MB).':'That file could not be read.'}e.target.value=''}});
     const rfBox=el('div',{style:'margin-top:6px'},el('div',{class:'small'},'Attach an image or PDF to your reply (optional, PDF up to 1.5 MB). Press Save reply to send it.'),rfIn,rfPrev);
     const done=el('input',{type:'checkbox',onchange:async()=>{const {error:e}=await sb.from('student_pics').update({done:done.checked}).eq('id',p.id);msg.textContent=e?'Could not save':'Saved'}});done.checked=!!p.done;
-    card.append(el('div',{class:'item',style:p.done?'opacity:.65':''},
+    card.append(el('div',{class:'item','data-pid':p.id,style:p.done?'opacity:.65':''},
       el('div',{class:'lab'},(nm[p.student_id]||'Student')+'  ',el('span',{class:'small'},new Date(p.created_at).toLocaleString()+'  |  '+(p.kind||''))),
       p.note?el('div',{style:'margin:4px 0'},p.note):'',
       url?(pdf?el('a',{href:url,target:'_blank',rel:'noopener',style:'font-weight:600'},'Open PDF'):el('img',{class:'photo',src:url,style:'display:block;background:#fff'})):el('div',{class:'err'},'File not available'),
@@ -277,6 +277,7 @@ function renderTeacher(){
   const t=el('div',{class:'tabs'},['overview','students','view','allocate','marking','pics','backup'].map(k=>el('button',{'aria-pressed':tab===k?'true':'false',onclick:()=>{tab=k;renderTeacher()}},{overview:'Overview',students:'Students',view:'View homework',allocate:'Allocate homework',marking:'Marking',pics:'Files',backup:'Backup'}[k])));
   const out=el('div',{});t.append(el('button',{class:'btn ghost sm',style:'margin-left:auto',onclick:renderTeacher},'↻ Refresh'),el('span',{class:'small',style:'align-self:center'},'Updated '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})));show(el('h1',{},'Lecturer'),t,out);
   ({overview:tOverview,students:tStudents,view:tView,allocate:tAllocate,marking:tMarking,pics:tPics,backup:tBackup})[tab](out);
+  if(FOCUS){const f=FOCUS;FOCUS=null;let n=0;const iv=setInterval(()=>{const q=f.pid?'[data-pid="'+f.pid+'"]':'[data-sid="'+f.sid+'"]';const node=document.querySelector(q);if(node){clearInterval(iv);node.scrollIntoView({block:'start'});node.style.outline='3px solid #f5b400';node.style.outlineOffset='2px';setTimeout(()=>{node.style.outline=''},4000)}else if(++n>25)clearInterval(iv)},200)}
 }
 async function tView(out){
   const {data:hw}=await sb.from('homework').select('id,title,year,spec').order('id');
@@ -305,8 +306,8 @@ async function tOverview(out){
   const [{data:st},{data:hw},{data:sub},{data:asg},{data:drf},{data:pcs}]=await Promise.all([sb.from('students').select('*').eq('archived',false).order('name'),sb.from('homework').select('id,title').order('id'),sb.from('submissions').select('student_id,homework_id,released,submitted_at'),sb.from('assignments').select('student_id,homework_id'),sb.from('drafts').select('student_id,homework_id'),sb.from('student_pics').select('id,student_id,kind,note,created_at,done')]);
   if(!st.length)return out.append(el('div',{class:'card'},'No students yet. Add them on the Students tab.'));
   const get=(s,h)=>sub.find(x=>x.student_id===s&&x.homework_id===h);
-  const nm=id=>(st.find(s=>s.id===id)||{}).name;const ttl=id=>{const h=hw.find(y=>y.id===id)||{};return id+(h.title?': '+h.title:'')};const pend=[...sub.filter(x=>!x.released&&nm(x.student_id)).map(x=>({at:x.submitted_at,who:nm(x.student_id),what:ttl(x.homework_id),tb:'marking',btn:'Mark'})),...(pcs||[]).filter(p=>!p.done&&nm(p.student_id)).map(p=>({at:p.created_at,who:nm(p.student_id),what:'File sent: '+(p.kind||'')+(p.note?' - '+p.note:''),tb:'pics',btn:'Open'}))].sort((a,b)=>new Date(a.at)-new Date(b.at));
-  out.append(el('div',{class:'card'},el('h2',{},'Waiting for you to mark'+(pend.length?' ('+pend.length+')':'')),el('p',{class:'small'},'Oldest first. This lists homework waiting to be marked and files students have sent that you have not yet ticked as seen.'),pend.length?el('table',{style:'width:100%'},pend.map(x=>el('tr',{},el('td',{},x.who),el('td',{},x.what),el('td',{class:'small'},x.at?new Date(x.at).toLocaleString([],{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):''),el('td',{},el('button',{class:'btn ghost sm',onclick:()=>{tab=x.tb;renderTeacher()}},x.btn))))):el('p',{},'Nothing is waiting.')));
+  const nm=id=>(st.find(s=>s.id===id)||{}).name;const ttl=id=>{const h=hw.find(y=>y.id===id)||{};return id+(h.title?': '+h.title:'')};const pend=[...sub.filter(x=>!x.released&&nm(x.student_id)).map(x=>({at:x.submitted_at,who:nm(x.student_id),what:ttl(x.homework_id),tb:'marking',btn:'Mark',hw:x.homework_id,sid:x.student_id})),...(pcs||[]).filter(p=>!p.done&&nm(p.student_id)).map(p=>({at:p.created_at,who:nm(p.student_id),what:'File sent: '+(p.kind||'')+(p.note?' - '+p.note:''),tb:'pics',btn:'Open',pid:p.id}))].sort((a,b)=>new Date(a.at)-new Date(b.at));
+  out.append(el('div',{class:'card'},el('h2',{},'Waiting for you to mark'+(pend.length?' ('+pend.length+')':'')),el('p',{class:'small'},'Oldest first. This lists homework waiting to be marked and files students have sent that you have not yet ticked as seen.'),pend.length?el('table',{style:'width:100%'},pend.map(x=>el('tr',{},el('td',{},x.who),el('td',{},x.what),el('td',{class:'small'},x.at?new Date(x.at).toLocaleString([],{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):''),el('td',{},el('button',{class:'btn ghost sm',onclick:()=>{FOCUS={hw:x.hw,sid:x.sid,pid:x.pid};tab=x.tb;renderTeacher()}},x.btn))))):el('p',{},'Nothing is waiting.')));
   out.append(el('div',{class:'card tw ov'},el('table',{},el('tr',{},el('th',{},'Homework'),st.map(s=>el('th',{},s.name))),
     hw.map(h=>el('tr',{},el('td',{title:h.title},h.id),st.map(s=>{const x=get(s.id,h.id);const t=x?(x.released?'✓ marked':'✓ in'):(asg.some(a=>a.student_id===s.id&&a.homework_id===h.id)?(drf.some(a=>a.student_id===s.id&&a.homework_id===h.id)?'started':'to do'):'–');return el('td',{class:{'✓ marked':'st-m','✓ in':'st-i','started':'st-s'}[t]||''},t)}))))),
     el('p',{class:'small'},'✓ in = submitted, waiting for you. ✓ marked = marks released. to do = given, not started. started = saved a draft, not yet submitted. – = not given.'));
@@ -350,7 +351,7 @@ async function tAllocate(out){
   sel.addEventListener('change',draw);
   out.append(el('div',{class:'card'},el('h2',{},'Choose a homework'),sel,el('p',{class:'small'},'Tick the students who should see it. Students only ever see homework you have given them. Once a student has submitted, it stays on their list.'),msg),body);draw();
 }
-let SNIPS=[],PICKERS=[];
+let SNIPS=[],PICKERS=[],FOCUS=null;
 function fillPicker(p){p.replaceChildren(el('option',{value:''},'Insert a saved comment...'),...SNIPS.map(x=>el('option',{value:String(x.id)},x.text.length>70?x.text.slice(0,70)+'...':x.text)));p.value=''}
 function refreshPickers(){PICKERS.forEach(fillPicker)}
 let SNIPDRAW=null;
@@ -369,13 +370,14 @@ function snippetManager(){
 async function tMarking(out){
   const {data:hw}=await sb.from('homework').select('id,title,spec,key').order('id');const {data:sn}=await sb.from('comment_snippets').select('id,text').order('text');SNIPS=sn||[];
   const sel=el('select',{},hw.map(h=>el('option',{value:h.id},h.id+' '+h.title)));
+  if(FOCUS&&FOCUS.hw&&hw.some(h=>h.id===FOCUS.hw))sel.value=FOCUS.hw;
   const list=el('div',{});out.append(el('div',{class:'card'},sel),snippetManager(),list);
   const load=async()=>{const h=hw.find(x=>x.id===sel.value);
     const [{data:sub},{data:st}]=await Promise.all([sb.from('submissions').select('*').eq('homework_id',h.id).order('submitted_at'),sb.from('students').select('id,name')]);
     list.replaceChildren();PICKERS=[];if(!sub||!sub.length)return list.append(el('div',{class:'card'},'No submissions yet.'));
     const relAll=el('button',{class:'btn',onclick:async()=>{const NL=String.fromCharCode(10);const bad=sub.map(x=>{const u=unmarked(h,x.manual_marks);return u.length?((st.find(y=>y.id===x.student_id)||{}).name||'(removed)')+': '+u.length+' question(s) with no mark':null}).filter(Boolean);if(bad.length&&!confirm('Some students have questions with no mark saved:'+NL+NL+bad.join(NL)+NL+NL+'They will count as 0. Release marks for everyone anyway? (Marks typed but not yet saved are not included.)'))return;for(const x of sub){const sim=await ensureStudentImgs(h,x);await sb.from('submissions').update({released:true,student_imgs:sim}).eq('id',x.id)}load()}},'Release marks for all');
     list.append(el('div',{class:'bar'},el('span',{class:'meta'},sub.length+' submitted'),relAll));
-    sub.forEach(s=>list.append(markCard(h,s,st.find(x=>x.id===s.student_id),load)))};
+    sub.forEach(s=>{const mc=markCard(h,s,st.find(x=>x.id===s.student_id),load);mc.setAttribute('data-sid',s.student_id);list.append(mc)})};
   sel.onchange=load;if(hw.length)load();
 }
 function unmarked(h,marks){const out=[];h.spec.sections.forEach(sec=>sec.items.forEach(it=>{if((it.type==='text'||it.type==='upload')&&(marks||{})[it.id]===undefined)out.push(sec.title.split(' (')[0]+': '+it.label.slice(0,45)+(it.label.length>45?'...':''))}));return out}
